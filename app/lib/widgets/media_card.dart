@@ -76,14 +76,16 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
       displayArtist = 'Dijeda';
     }
 
-    return SharedCard(
-      child: Column(
-        children: [
-          CardHeader(
-            icon: Icons.music_note_rounded,
-            title: 'Media Player',
-            trailing: isLoading ? const CardLoadingIndicator() : null,
-          ),
+    return SizedBox(
+      height: 430,
+      child: SharedCard(
+        child: Column(
+          children: [
+            CardHeader(
+              icon: Icons.music_note_rounded,
+              title: 'Media Player',
+              trailing: isLoading ? const CardLoadingIndicator() : null,
+            ),
           const SizedBox(height: 24),
           // Cover art with breathing animation & glow
           ScaleTransition(
@@ -223,7 +225,8 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildControlButton({

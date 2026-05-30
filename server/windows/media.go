@@ -160,33 +160,102 @@ var (
 	mediaCacheTime time.Time
 )
 
+// getAppDir returns the directory of the running server executable.
+func getAppDir() string {
+	if serverExe, err := os.Executable(); err == nil {
+		return filepath.Dir(serverExe)
+	}
+	return "."
+}
+
+// runInUserSessionWithOutput runs a command in the interactive session, redirecting its output to a file and reading it.
+func runInUserSessionWithOutput(command string, outputFile string) (string, error) {
+	_ = os.Remove(outputFile)
+
+	var sessionID uint32
+	pid := uint32(os.Getpid())
+	ret, _, _ := pProcessIdToSessionId.Call(uintptr(pid), uintptr(unsafe.Pointer(&sessionID)))
+
+	// If interactive session, run directly
+	if ret != 0 && sessionID > 0 {
+		slog.Info("Running media status directly (interactive session)", "command", command)
+		fullCommand := fmt.Sprintf(`cmd.exe /c %s > "%s" 2>&1`, command, outputFile)
+		cmd := exec.Command("cmd.exe", "/c", fullCommand)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return "", fmt.Errorf("direct run failed: %w - %s", err, string(out))
+		}
+	} else {
+		// Run via scheduled task bypass (Session 0)
+		slog.Info("Running media status via schtasks (Session 0 service)", "command", command)
+		taskName := fmt.Sprintf("PCRemoteTask_Media_%d_%d", syscall.Getpid(), time.Now().UnixMilli())
+		
+		// Redirect output to file
+		fullCommand := fmt.Sprintf(`cmd.exe /c %s > "%s" 2>&1`, command, outputFile)
+		
+		register := exec.Command("schtasks", "/create", "/tn", taskName,
+			"/tr", fullCommand,
+			"/sc", "ONCE",
+			"/st", "00:00",
+			"/f",
+			"/ru", "INTERACTIVE",
+		)
+		if out, err := register.CombinedOutput(); err != nil {
+			return "", fmt.Errorf("schtasks create failed: %w - %s", err, string(out))
+		}
+
+		run := exec.Command("schtasks", "/run", "/tn", taskName)
+		if out, err := run.CombinedOutput(); err != nil {
+			exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run() //nolint
+			return "", fmt.Errorf("schtasks run failed: %w - %s", err, string(out))
+		}
+
+		go func(tn string) {
+			time.Sleep(1500 * time.Millisecond)
+			exec.Command("schtasks", "/delete", "/tn", tn, "/f").Run()
+		}(taskName)
+	}
+
+	// Poll file read with 1.5s timeout
+	for i := 0; i < 15; i++ {
+		time.Sleep(100 * time.Millisecond)
+		if info, err := os.Stat(outputFile); err == nil && info.Size() > 0 {
+			data, readErr := os.ReadFile(outputFile)
+			if readErr == nil {
+				_ = os.Remove(outputFile)
+				return string(data), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("timeout waiting for output file: %s", outputFile)
+}
+
 func (RealAPI) GetMediaStatus() (map[string]any, error) {
 	if time.Since(mediaCacheTime) < 500*time.Millisecond && mediaCacheVal != nil {
 		return mediaCacheVal, nil
 	}
 
-	// Run PowerShell script dynamically using stdin to avoid disk writes
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", "-")
-	
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stdin pipe: %w", err)
+	appDir := getAppDir()
+	scriptFile := filepath.Join(appDir, "get_media_status_temp.ps1")
+	outputFile := filepath.Join(appDir, "media_status_temp.json")
+
+	// Write powershell script to file to avoid cmd escaping bugs
+	if err := os.WriteFile(scriptFile, []byte(mediaStatusScript), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write temp script file: %w", err)
 	}
+	defer os.Remove(scriptFile)
 
-	// Write script to stdin asynchronously
-	go func() {
-		defer stdin.Close()
-		_, _ = stdin.Write([]byte(mediaStatusScript))
-	}()
+	// Build command to execute script
+	runCmd := fmt.Sprintf(`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, scriptFile)
 
-	out, err := cmd.CombinedOutput()
+	outStr, err := runInUserSessionWithOutput(runCmd, outputFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run powershell media status: %w - %s", err, string(out))
+		return nil, err
 	}
 
 	var result map[string]any
-	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON from powershell media status: %w - raw: %s", err, string(out))
+	if err := json.Unmarshal([]byte(outStr), &result); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON from powershell media status: %w - raw: %s", err, outStr)
 	}
 
 	mediaCacheVal = result
