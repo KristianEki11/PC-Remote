@@ -66,16 +66,49 @@ The project consists of three main components:
 
 ---
 
-## 🚀 Getting Started
+## 📦 Quick Start Guide (For Users - No Coding Required)
+
+If you just want to use the application to control your PC, you do not need to compile any code. You can download pre-built binaries directly from the **Releases** section.
+
+### Step 1: Download the Files
+1. Go to the [Releases](https://github.com/KristianEki11/PC-Remote/releases) page of this repository.
+2. Under the latest version (e.g. `v2.1.0`), download two files:
+   - **`PCRemoteSetup.exe`** (Installer for your Windows PC)
+   - **`app-release.apk`** (Application for your Android Phone)
+
+### Step 2: Setup the Windows PC Server
+1. Double-click **`PCRemoteSetup.exe`** on your PC to launch the setup wizard (accept the Administrator prompt).
+2. During setup, you will be asked to:
+   - Set a **PIN** (4-8 digits, e.g. `1234`). Write this down as you will need it to login from your phone.
+   - Choose a port (default is `8000`).
+3. **Crucial (WiFi Network Profile)**: Once the installation is complete, a prompt will guide you to change your WiFi profile to **Private** (if not already set). This is required so Windows Defender Firewall allows your phone to connect to your PC.
+4. The installer automatically registers the server as a background service and starts it.
+
+### Step 3: Install the Android App
+1. Transfer **`app-release.apk`** to your Android phone (via USB, email, or Bluetooth).
+2. Open the file on your phone to install it. 
+   - *Note: If prompted, enable "Install from Unknown Sources" or allow your browser/file manager to install apps.*
+
+### Step 4: Connect & Control
+1. Make sure both your **PC and Phone are connected to the same WiFi network**.
+2. Find your PC's IP Address (the installer shows this at the final screen, or you can find it by opening Command Prompt on your PC and typing `ipconfig` under your wireless adapter's IPv4 address).
+3. Open the **PC Remote** app on your phone.
+4. Enter your PC's IP address (e.g. `192.168.1.100`) and the **PIN** you configured in Step 2.
+5. Tap **Connect** and enjoy remote control!
+
+---
+
+## 🛠️ Developer Setup & Compilation (Advanced)
+
+If you wish to modify the code or compile the project from scratch, follow these instructions.
 
 ### 1. Server Setup (Go)
 
 #### Prerequisites
 - Go 1.21 or newer (on Windows)
-- Cgo is not strictly required, as we interact with COM and Win32 APIs dynamically.
+- Cgo is not strictly required.
 
 #### Development Run
-Navigate to the server directory, set up your local environment file, and run:
 ```powershell
 cd server
 copy .env.example .env
@@ -116,7 +149,7 @@ The output will be generated at `app/build/app/outputs/flutter-apk/app-release.a
 
 #### Prerequisites
 - [NSIS (Nullsoft Scriptable Install System)](https://nsis.sourceforge.io/) installed.
-- NSSM (Non-Sucking Service Manager) binary placed under `installer/tools/nssm.exe` (or adjusted path).
+- NSSM (Non-Sucking Service Manager) binary placed under `installer/tools/nssm.exe`.
 
 #### Compilation
 Compile `installer/PCRemoteSetup.nsi` using the NSIS Compiler interface or command line:
