@@ -18,7 +18,7 @@ import (
 // ──────────────────────────────────────────────────────────
 
 func (RealAPI) LockWorkstation() error {
-	return runInUserSession(`rundll32.exe user32.dll,LockWorkStation`)
+	return runInUserSession("rundll32.exe", "user32.dll,LockWorkStation")
 }
 
 func (RealAPI) ScheduleShutdown(delaySeconds int) error {
@@ -129,8 +129,7 @@ $type::SendMessage(-1, 0x0112, 0xF170, 2)
 Remove-Item $PSCommandPath -Force
 `
 	if err := os.WriteFile(psPath, []byte(psContent), 0666); err == nil {
-		cmdStr := fmt.Sprintf(`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, psPath)
-		if runErr := runInUserSession(cmdStr); runErr != nil {
+		if runErr := runInUserSession("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", psPath); runErr != nil {
 			slog.Error("Failed to run Modern Standby sleep helper in user session", "error", runErr)
 			// Clean up file if task scheduling failed
 			if _, statErr := os.Stat(psPath); statErr == nil {
@@ -160,7 +159,7 @@ func (RealAPI) OpenBrowser(url string) error {
 		return errors.New("url must start with http:// or https://")
 	}
 	// Open via default browser in user session
-	return runInUserSession(fmt.Sprintf(`rundll32 url.dll,FileProtocolHandler %s`, url))
+	return runInUserSession("rundll32", "url.dll,FileProtocolHandler", url)
 }
 
 func hasHTTPPrefix(url string) bool {
