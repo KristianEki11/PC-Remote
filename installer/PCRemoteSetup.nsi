@@ -3,7 +3,7 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
-Name "PC Remote Controller v2.2.3"
+Name "PC Remote Controller v2.2.4"
 OutFile "PCRemoteSetup.exe"
 InstallDir "$PROGRAMFILES64\PCRemote"
 RequestExecutionLevel admin
@@ -72,14 +72,18 @@ FunctionEnd
 Section "MainSection" SEC01
     SetOutPath "$INSTDIR"
 
-    ; Handle reinstall / upgrade scenario
+    ; Kill any running server processes first to unlock files
+    nsExec::ExecToStack 'taskkill /F /IM pcremote-server.exe'
+
+    ; Cleanup any old NSSM service if it exists from previous installations
     nsExec::ExecToStack 'nssm stop PCRemoteServer'
     nsExec::ExecToStack 'nssm remove PCRemoteServer confirm'
+    nsExec::ExecToStack '"$INSTDIR\nssm.exe" stop PCRemoteServer'
+    nsExec::ExecToStack '"$INSTDIR\nssm.exe" remove PCRemoteServer confirm'
 
     ; Install files
     File "..\server\dist\pcremote-server.exe"
     File "..\server\dist\sendkey.exe"
-    File "tools\nssm.exe"
     File "..\server\favicon.ico"
 
     ; Create logs directory
@@ -91,19 +95,14 @@ Section "MainSection" SEC01
     FileWrite $0 "PORT=8000$\r$\n"
     FileClose $0
 
-    ; Install service via nssm
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" install PCRemoteServer "$INSTDIR\pcremote-server.exe"'
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" set PCRemoteServer AppDirectory "$INSTDIR"'
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" set PCRemoteServer AppStdout "$INSTDIR\logs\stdout.log"'
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" set PCRemoteServer AppStderr "$INSTDIR\logs\stderr.log"'
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" set PCRemoteServer AppRotateFiles 1'
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" set PCRemoteServer AppRestartDelay 3000'
+    ; Register as Startup Application in HKLM Registry Run key
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer" '"$INSTDIR\pcremote-server.exe"'
 
     ; Open firewall
     nsExec::ExecToLog 'netsh advfirewall firewall add rule name="PCRemote Server" dir=in action=allow protocol=TCP localport=8000'
 
-    ; Start service
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" start PCRemoteServer'
+    ; Start the application directly in the user session
+    Exec '"$INSTDIR\pcremote-server.exe"'
 
     MessageBox MB_OK|MB_ICONINFORMATION "PC Remote Server installed successfully!$\r$\nServer is running on port 8000.$\r$\nConnect your Android app to: http://[your-pc-ip]:8000"
 
@@ -118,9 +117,15 @@ SkipNetwork:
 SectionEnd
 
 Section "Uninstall"
-    ; Stop and remove service
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" stop PCRemoteServer'
-    nsExec::ExecToLog '"$INSTDIR\nssm.exe" remove PCRemoteServer confirm'
+    ; Kill running instance
+    nsExec::ExecToStack 'taskkill /F /IM pcremote-server.exe'
+
+    ; Stop and remove service (cleanup old installations if they exist)
+    nsExec::ExecToStack 'nssm stop PCRemoteServer'
+    nsExec::ExecToStack 'nssm remove PCRemoteServer confirm'
+
+    ; Remove registry startup
+    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer"
 
     ; Remove firewall rule
     nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="PCRemote Server"'
@@ -128,7 +133,6 @@ Section "Uninstall"
     ; Delete files
     Delete "$INSTDIR\pcremote-server.exe"
     Delete "$INSTDIR\sendkey.exe"
-    Delete "$INSTDIR\nssm.exe"
     Delete "$INSTDIR\favicon.ico"
     Delete "$INSTDIR\.env"
     Delete "$INSTDIR\uninstall.exe"

@@ -37,6 +37,7 @@ func runInUserSession(exePath string, args ...string) error {
 	if ret != 0 && sessionID > 0 {
 		slog.Info("Running command directly (interactive session)", "session_id", sessionID, "exePath", exePath, "args", args)
 		cmd := exec.Command(exePath, args...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("direct command execution failed: %w — %s", err, string(out))
 		}
@@ -61,6 +62,7 @@ func runInUserSession(exePath string, args ...string) error {
 		"/f",
 		"/ru", "INTERACTIVE",
 	)
+	register.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
 	if out, err := register.CombinedOutput(); err != nil {
 		return fmt.Errorf("schtasks /create failed: %w — %s", err, string(out))
@@ -68,16 +70,21 @@ func runInUserSession(exePath string, args ...string) error {
 
 	// Run the task immediately
 	run := exec.Command("schtasks", "/run", "/tn", taskName)
+	run.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	if out, err := run.CombinedOutput(); err != nil {
 		// Try to clean up even if run failed
-		exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run() //nolint
+		delCmd := exec.Command("schtasks", "/delete", "/tn", taskName, "/f")
+		delCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		delCmd.Run()
 		return fmt.Errorf("schtasks /run failed: %w — %s", err, string(out))
 	}
 
 	// Delete the task in a background goroutine after a short sleep to allow the process to finish
 	go func(tn string) {
 		time.Sleep(1 * time.Second)
-		exec.Command("schtasks", "/delete", "/tn", tn, "/f").Run()
+		delCmd := exec.Command("schtasks", "/delete", "/tn", tn, "/f")
+		delCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		delCmd.Run()
 	}(taskName)
 	return nil
 }
@@ -193,6 +200,7 @@ func runInUserSessionWithOutput(scriptFile string, outputFile string) (string, e
 	if ret != 0 && sessionID > 0 {
 		slog.Info("Running media status directly (interactive session)", "scriptFile", scriptFile)
 		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptFile)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("direct run failed: %w - %s", err, string(out))
@@ -215,20 +223,26 @@ func runInUserSessionWithOutput(scriptFile string, outputFile string) (string, e
 		"/f",
 		"/ru", "INTERACTIVE",
 	)
+	register.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
 	if out, err := register.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("schtasks create failed: %w - %s", err, string(out))
 	}
 
 	run := exec.Command("schtasks", "/run", "/tn", taskName)
+	run.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	if out, err := run.CombinedOutput(); err != nil {
-		exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run() //nolint
+		delCmd := exec.Command("schtasks", "/delete", "/tn", taskName, "/f")
+		delCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		delCmd.Run()
 		return "", fmt.Errorf("schtasks run failed: %w - %s", err, string(out))
 	}
 
 	go func(tn string) {
 		time.Sleep(1500 * time.Millisecond)
-		exec.Command("schtasks", "/delete", "/tn", tn, "/f").Run()
+		delCmd := exec.Command("schtasks", "/delete", "/tn", tn, "/f")
+		delCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		delCmd.Run()
 	}(taskName)
 
 	// Poll file read with 1.5s timeout
