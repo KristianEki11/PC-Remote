@@ -12,6 +12,10 @@ class MediaState extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   Future<void> fetchMediaStatus() async {
+    if (ApiService.authPin.isEmpty) {
+      stopPolling();
+      return;
+    }
     final data = await ApiService.getMediaStatus();
     if (data != null) {
       _currentStatus = MediaStatus.fromJson(data);

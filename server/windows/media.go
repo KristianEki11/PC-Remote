@@ -48,20 +48,19 @@ func runInUserSession(exePath string, args ...string) error {
 	taskName := fmt.Sprintf("PCRemoteTask_%d_%d", syscall.Getpid(), time.Now().UnixMilli())
 
 	// Format /tr command line
-	// e.g. "C:\Program Files\PCRemote\sendkey.exe" play_pause
-	// We build this using SysProcAttr.CmdLine to avoid Go escaping problems
-	taskCmdLine := fmt.Sprintf(`"%s"`, exePath)
+	// Since we use short 8.3 path (no spaces), we don't need nested quoting!
+	taskCmdLine := exePath
 	for _, arg := range args {
-		taskCmdLine += fmt.Sprintf(` "%s"`, arg)
+		taskCmdLine += " " + arg
 	}
 
-	cmdLine := fmt.Sprintf(`schtasks /create /tn "%s" /tr "%s" /sc ONCE /st 00:00 /f /ru INTERACTIVE`, 
-		taskName, strings.ReplaceAll(taskCmdLine, `"`, `\"`))
-
-	register := exec.Command("schtasks")
-	register.SysProcAttr = &syscall.SysProcAttr{
-		CmdLine: cmdLine,
-	}
+	register := exec.Command("schtasks", "/create", "/tn", taskName,
+		"/tr", taskCmdLine,
+		"/sc", "ONCE",
+		"/st", "00:00",
+		"/f",
+		"/ru", "INTERACTIVE",
+	)
 
 	if out, err := register.CombinedOutput(); err != nil {
 		return fmt.Errorf("schtasks /create failed: %w — %s", err, string(out))
@@ -93,13 +92,11 @@ func (RealAPI) SendMediaKey(action string) error {
 		return fmt.Errorf("unknown media action: %q", action)
 	}
 
-	// Resolve sendkey.exe path: check install dir first, then exe-relative
-	exePath := filepath.Join(os.Getenv("PROGRAMFILES"), "PCRemote", "sendkey.exe")
+	// First try resolving using short path in Program Files
+	exePath := filepath.Join("C:\\PROGRA~1\\PCRemote", "sendkey.exe")
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
-		// Fallback: same directory as the server executable
-		if serverExe, exeErr := os.Executable(); exeErr == nil {
-			exePath = filepath.Join(filepath.Dir(serverExe), "sendkey.exe")
-		}
+		// Fallback: same directory as the server executable (which is getAppDir())
+		exePath = filepath.Join(getAppDir(), "sendkey.exe")
 	}
 
 	return runInUserSession(exePath, action)
@@ -175,10 +172,11 @@ var (
 	mediaCacheTime time.Time
 )
 
-// getAppDir returns the directory of the running server executable.
+// getAppDir returns the directory of the running server executable, converting "C:\Program Files" to "C:\PROGRA~1" to avoid spaces.
 func getAppDir() string {
 	if serverExe, err := os.Executable(); err == nil {
-		return filepath.Dir(serverExe)
+		dir := filepath.Dir(serverExe)
+		return strings.ReplaceAll(dir, "C:\\Program Files", "C:\\PROGRA~1")
 	}
 	return "."
 }
@@ -206,15 +204,17 @@ func runInUserSessionWithOutput(scriptFile string, outputFile string) (string, e
 	slog.Info("Running media status via schtasks (Session 0 service)", "scriptFile", scriptFile)
 	taskName := fmt.Sprintf("PCRemoteTask_Media_%d_%d", syscall.Getpid(), time.Now().UnixMilli())
 
-	// Format command line for schtasks /create
-	taskCmdLine := fmt.Sprintf(`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, scriptFile)
-	cmdLine := fmt.Sprintf(`schtasks /create /tn "%s" /tr "%s" /sc ONCE /st 00:00 /f /ru INTERACTIVE`, 
-		taskName, strings.ReplaceAll(taskCmdLine, `"`, `\"`))
+	// Format /tr command line
+	// Since we use 8.3 short paths (no spaces), we don't need nested quoting!
+	taskCmdLine := fmt.Sprintf("powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File %s", scriptFile)
 
-	register := exec.Command("schtasks")
-	register.SysProcAttr = &syscall.SysProcAttr{
-		CmdLine: cmdLine,
-	}
+	register := exec.Command("schtasks", "/create", "/tn", taskName,
+		"/tr", taskCmdLine,
+		"/sc", "ONCE",
+		"/st", "00:00",
+		"/f",
+		"/ru", "INTERACTIVE",
+	)
 
 	if out, err := register.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("schtasks create failed: %w - %s", err, string(out))

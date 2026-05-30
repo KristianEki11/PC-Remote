@@ -8,6 +8,7 @@ import '../models/app_state.dart';
 import '../utils/globals.dart';
 import '../screens/login_screen.dart';
 import '../utils/volume_helpers.dart';
+import '../models/media_state.dart';
 
 class ApiService {
   // ──────────────────────────────────────
@@ -69,11 +70,12 @@ class ApiService {
     return _formatUrl(ip);
   }
 
+  static String get authPin => _prefs.getString('auth_token') ?? '';
+
   static Map<String, String> get _headers {
-    final pin = _prefs.getString('auth_token') ?? '';
     return {
       'Content-Type': 'application/json',
-      'X-PIN': pin,
+      'X-PIN': authPin,
     };
   }
 
@@ -84,6 +86,9 @@ class ApiService {
       final context = navigatorKey.currentContext;
       if (context != null && context.mounted) {
         Provider.of<AppState>(context, listen: false).clear();
+        try {
+          Provider.of<MediaState>(context, listen: false).stopPolling();
+        } catch (_) {}
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (route) => false,
@@ -118,6 +123,12 @@ class ApiService {
     try {
       final url = _baseUrl;
       final headers = _headers;
+      
+      // If endpoint is protected and token/PIN is empty, don't execute
+      if (path != '/health' && (headers['X-PIN'] ?? '').isEmpty) {
+        return null;
+      }
+
       final response = await http.get(
         Uri.parse('$url$path'),
         headers: headers,
@@ -139,6 +150,12 @@ class ApiService {
     try {
       final url = _baseUrl;
       final headers = _headers;
+
+      // If endpoint is protected and token/PIN is empty, don't execute
+      if (path != '/health' && (headers['X-PIN'] ?? '').isEmpty) {
+        return false;
+      }
+
       final response = await http.post(
         Uri.parse('$url$path'),
         headers: headers,
