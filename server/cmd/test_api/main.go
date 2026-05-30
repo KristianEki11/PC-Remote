@@ -1,25 +1,25 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
-// Global flags
+// Global config
 var (
 	serverURL string
 	pin       string
-	testSleep bool
+	reader    *bufio.Reader
 )
 
-// ANSI color codes
 const (
 	colorReset  = "\033[0m"
 	colorRed    = "\033[31m"
@@ -31,143 +31,229 @@ const (
 )
 
 func main() {
+	reader = bufio.NewReader(os.Stdin)
+
 	// 1. Auto-discover PIN and Port
 	defaultPin := discoverPin()
 	defaultPort := discoverPort()
-	defaultURL := fmt.Sprintf("http://localhost:%s", defaultPort)
+	serverURL = fmt.Sprintf("http://localhost:%s", defaultPort)
+	pin = defaultPin
 
-	// 2. Define flags
-	flag.StringVar(&serverURL, "url", defaultURL, "PCRemote Server URL")
-	flag.StringVar(&pin, "pin", defaultPin, "Authentication PIN")
-	flag.BoolVar(&testSleep, "test-sleep", true, "Test system sleep (WARNING: will trigger sleep/display off)")
-	flag.Parse()
-
+	// Print startup header
 	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
-	fmt.Printf("%s   PCRemote Server — Premium HTTP API Test Suite%s\n", colorBold+colorCyan, colorReset)
-	fmt.Printf("   Server URL: %s%s%s\n", colorBold, serverURL, colorReset)
-	fmt.Printf("   Auth PIN:   %s%s%s (discovered: %s)\n", colorBold, pin, colorReset, defaultPin)
-	fmt.Printf("%s============================================================%s\n\n", colorBlue, colorReset)
+	fmt.Printf("%s   PCRemote Server — Interactive API Console Test Tool%s\n", colorBold+colorCyan, colorReset)
+	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
 
-	// Keep track of counts
-	passed := 0
-	failed := 0
-
-	runTest := func(name string, method string, endpoint string, usePin bool, customPin string, payload any, expectedStatus int) {
-		fmt.Printf("Test: %-55s ", name)
-		
-		var body io.Reader
-		if payload != nil {
-			jsonBytes, err := json.Marshal(payload)
-			if err != nil {
-				fmt.Printf("[%sFAIL%s] (JSON marshal error: %v)\n", colorRed, colorReset, err)
-				failed++
-				return
-			}
-			body = bytes.NewReader(jsonBytes)
-		}
-
-		req, err := http.NewRequest(method, serverURL+endpoint, body)
-		if err != nil {
-			fmt.Printf("[%sFAIL%s] (Request creation error: %v)\n", colorRed, colorReset, err)
-			failed++
-			return
-		}
-
-		if payload != nil {
-			req.Header.Set("Content-Type", "application/json")
-		}
-
-		if usePin {
-			p := pin
-			if customPin != "" {
-				p = customPin
-			}
-			req.Header.Set("X-PIN", p)
-		}
-
-		client := &http.Client{Timeout: 5 * time.Second}
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Printf("[%sFAIL%s] (Connection error: %v)\n", colorRed, colorReset, err)
-			failed++
-			return
-		}
-		defer resp.Body.Close()
-
-		respBodyBytes, _ := io.ReadAll(resp.Body)
-		respBody := string(respBodyBytes)
-
-		if resp.StatusCode == expectedStatus {
-			fmt.Printf("[%sPASS%s] (HTTP %d)\n", colorGreen, colorReset, resp.StatusCode)
-			passed++
+	fmt.Printf("Masukkan IP Server [default: localhost]: ")
+	ipInput, _ := reader.ReadString('\n')
+	ipInput = strings.TrimSpace(ipInput)
+	if ipInput != "" {
+		if !strings.HasPrefix(ipInput, "http://") && !strings.HasPrefix(ipInput, "https://") {
+			serverURL = "http://" + ipInput
 		} else {
-			// Some tests like Sonar endpoints might return 404 or 500 if Sonar is not installed/active.
-			// We mark them as warning/skipped since it's environment dependent.
-			if (endpoint == "/audio/channels" || strings.HasPrefix(endpoint, "/audio/channel/")) && (resp.StatusCode == 404 || resp.StatusCode == 500) {
-				fmt.Printf("[%sWARN%s] (HTTP %d - Sonar not active: %s)\n", colorYellow, colorReset, resp.StatusCode, strings.TrimSpace(respBody))
-				passed++
-			} else {
-				fmt.Printf("[%sFAIL%s] (HTTP %d, expected %d. Resp: %s)\n", colorRed, colorReset, resp.StatusCode, expectedStatus, strings.TrimSpace(respBody))
-				failed++
-			}
+			serverURL = ipInput
+		}
+		if !strings.Contains(serverURL, ":") {
+			serverURL = serverURL + ":" + defaultPort
 		}
 	}
 
-	// 1. Health
-	runTest("1. Health Check (No Auth)", "GET", "/health", false, "", nil, http.StatusOK)
-
-	// 2. Auth checks
-	runTest("2. Auth: Wrong PIN", "POST", "/audio/volume", true, "wrong_pin_999", map[string]any{"level": 0.5}, http.StatusUnauthorized)
-	runTest("3. Auth: Missing PIN Header", "POST", "/audio/volume", false, "", map[string]any{"level": 0.5}, http.StatusUnauthorized)
-
-	// 3. Audio status & adjustments
-	runTest("4. Audio Status Check", "GET", "/audio/status", true, "", nil, http.StatusOK)
-	runTest("5. Set Main Audio Volume (50%)", "POST", "/audio/volume", true, "", map[string]any{"level": 0.5}, http.StatusOK)
-	runTest("6. Set Main Audio Volume Invalid (150%)", "POST", "/audio/volume", true, "", map[string]any{"level": 1.5}, http.StatusBadRequest)
-	runTest("7. Mute Main Audio", "POST", "/audio/mute", true, "", map[string]any{"muted": true}, http.StatusOK)
-	runTest("8. Unmute Main Audio", "POST", "/audio/mute", true, "", map[string]any{"muted": false}, http.StatusOK)
-
-	// 4. Sonar channel APIs (warning if Sonar is not available/enabled)
-	runTest("9. Get Sonar Audio Channels", "GET", "/audio/channels", true, "", nil, http.StatusOK)
-	runTest("10. Set Sonar Media Channel Volume (80%)", "POST", "/audio/channel/volume", true, "", map[string]any{"channel": "media", "level": 0.8}, http.StatusOK)
-	runTest("11. Mute Sonar Gaming Channel", "POST", "/audio/channel/mute", true, "", map[string]any{"channel": "gaming", "muted": true}, http.StatusOK)
-
-	// 5. Media keys
-	runTest("12. Send Media Key: Play/Pause", "POST", "/media/play", true, "", nil, http.StatusOK)
-	runTest("13. Send Media Key: Next Track", "POST", "/media/next", true, "", nil, http.StatusOK)
-	runTest("14. Send Media Key: Previous Track", "POST", "/media/prev", true, "", nil, http.StatusOK)
-
-	// 6. Browser endpoints
-	runTest("15. Open Browser URL (example.com)", "POST", "/browser/open", true, "", map[string]any{"url": "https://example.com"}, http.StatusOK)
-	runTest("16. Open Browser URL Invalid (empty)", "POST", "/browser/open", true, "", map[string]any{"url": ""}, http.StatusBadRequest)
-
-	// 7. System operations (safe)
-	runTest("17. Schedule Shutdown (10m delay)", "POST", "/system/shutdown", true, "", map[string]any{"delay_minutes": 10}, http.StatusOK)
-	runTest("18. Cancel Scheduled Shutdown", "POST", "/system/shutdown/cancel", true, "", nil, http.StatusOK)
-	runTest("19. Shutdown Invalid Delay (-1m)", "POST", "/system/shutdown", true, "", map[string]any{"delay_minutes": -1}, http.StatusBadRequest)
-
-	// 8. Sleep feature (only if flag is set)
-	if testSleep {
-		runTest("20. System Sleep (S0/S3 modern standby)", "POST", "/system/sleep", true, "", nil, http.StatusOK)
-	} else {
-		fmt.Printf("Test: %-55s [%sSKIP%s] (use -test-sleep flag)\n", "20. System Sleep", colorYellow, colorReset)
+	fmt.Printf("Masukkan PIN Otentikasi [default: %s]: ", pin)
+	pinInput, _ := reader.ReadString('\n')
+	pinInput = strings.TrimSpace(pinInput)
+	if pinInput != "" {
+		pin = pinInput
 	}
 
-	fmt.Println()
-	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
-	var failColor string
-	if failed > 0 {
-		failColor = colorRed
-	} else {
-		failColor = colorReset
-	}
-	fmt.Printf("   Tests Completed: Passed: %s%d%s, Failed: %s%d%s\n", 
-		colorGreen, passed, colorReset, 
-		failColor, failed, colorReset)
-	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
+	for {
+		printMenu()
+		fmt.Print("\nPilih opsi (0-15): ")
+		choiceStr, _ := reader.ReadString('\n')
+		choiceStr = strings.TrimSpace(choiceStr)
+		if choiceStr == "" {
+			continue
+		}
+		choice, err := strconv.Atoi(choiceStr)
+		if err != nil {
+			fmt.Printf("%sPilihan tidak valid.%s\n", colorRed, colorReset)
+			time.Sleep(1 * time.Second)
+			continue
+		}
 
-	if failed > 0 {
-		os.Exit(1)
+		if choice == 0 {
+			fmt.Println("Keluar dari program. Sampai jumpa!")
+			break
+		}
+
+		handleChoice(choice)
+		fmt.Println("\nTekan ENTER untuk kembali ke menu utama...")
+		reader.ReadString('\n')
+	}
+}
+
+func printMenu() {
+	// Clean screen using ANSI escape code
+	fmt.Print("\033[H\033[2J")
+	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
+	fmt.Printf("%s   PC Remote Controller — Interactive API Test Console%s\n", colorBold+colorCyan, colorReset)
+	fmt.Printf("   Target Server: %s%s%s | PIN: %s%s%s\n", colorBold, serverURL, colorReset, colorBold, pin, colorReset)
+	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
+	fmt.Println("  1. Health Check (Tanpa Auth)")
+	fmt.Println("  2. Cek Status Audio Utama (Volume, Mute, Device)")
+	fmt.Println("  3. Set Volume Utama (0.0 - 1.0)")
+	fmt.Println("  4. Toggle Mute Audio Utama")
+	fmt.Println("  5. Media: Play / Pause")
+	fmt.Println("  6. Media: Next Track")
+	fmt.Println("  7. Media: Previous Track")
+	fmt.Println("  8. Buka URL di Browser Default PC")
+	fmt.Println("  9. Kunci Layar PC (Lock Workstation)")
+	fmt.Println(" 10. Masuk Mode Standby/Sleep PC")
+	fmt.Println(" 11. Jadwalkan Shutdown PC")
+	fmt.Println(" 12. Batalkan Shutdown PC")
+	fmt.Println(" 13. Cek Status Saluran Audio (SteelSeries Sonar)")
+	fmt.Println(" 14. Set Volume Saluran Audio Sonar")
+	fmt.Println(" 15. Toggle Mute Saluran Audio Sonar")
+	fmt.Println("  0. Keluar")
+	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
+}
+
+func handleChoice(choice int) {
+	switch choice {
+	case 1:
+		sendRequest("GET", "/health", false, nil)
+	case 2:
+		sendRequest("GET", "/audio/status", true, nil)
+	case 3:
+		fmt.Print("Masukkan level volume (0.0 - 1.0): ")
+		volStr, _ := reader.ReadString('\n')
+		vol, err := strconv.ParseFloat(strings.TrimSpace(volStr), 64)
+		if err != nil || vol < 0.0 || vol > 1.0 {
+			fmt.Printf("%sVolume harus berupa angka desimal antara 0.0 dan 1.0!%s\n", colorRed, colorReset)
+			return
+		}
+		sendRequest("POST", "/audio/volume", true, map[string]any{"level": vol})
+	case 4:
+		fmt.Print("Mute? (y/n): ")
+		muteStr, _ := reader.ReadString('\n')
+		muted := strings.ToLower(strings.TrimSpace(muteStr)) == "y"
+		sendRequest("POST", "/audio/mute", true, map[string]any{"muted": muted})
+	case 5:
+		sendRequest("POST", "/media/play", true, nil)
+	case 6:
+		sendRequest("POST", "/media/next", true, nil)
+	case 7:
+		sendRequest("POST", "/media/prev", true, nil)
+	case 8:
+		fmt.Print("Masukkan URL (contoh: https://youtube.com): ")
+		urlStr, _ := reader.ReadString('\n')
+		urlStr = strings.TrimSpace(urlStr)
+		if urlStr == "" {
+			fmt.Printf("%sURL tidak boleh kosong!%s\n", colorRed, colorReset)
+			return
+		}
+		sendRequest("POST", "/browser/open", true, map[string]any{"url": urlStr})
+	case 9:
+		sendRequest("POST", "/system/lock", true, nil)
+	case 10:
+		fmt.Print("Apakah Anda yakin ingin menidurkan PC? (y/n): ")
+		confirm, _ := reader.ReadString('\n')
+		if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
+			fmt.Println("Dibatalkan.")
+			return
+		}
+		sendRequest("POST", "/system/sleep", true, nil)
+	case 11:
+		fmt.Print("Masukkan waktu tunda shutdown (dalam menit): ")
+		delayStr, _ := reader.ReadString('\n')
+		delay, err := strconv.Atoi(strings.TrimSpace(delayStr))
+		if err != nil || delay < 0 {
+			fmt.Printf("%sMenit harus berupa angka bulat positif!%s\n", colorRed, colorReset)
+			return
+		}
+		sendRequest("POST", "/system/shutdown", true, map[string]any{"delay_seconds": delay * 60})
+	case 12:
+		sendRequest("POST", "/system/shutdown/cancel", true, nil)
+	case 13:
+		sendRequest("GET", "/audio/devices", true, nil)
+	case 14:
+		fmt.Print("Masukkan ID/Nama Saluran Sonar (gaming, chat, media, mic): ")
+		ch, _ := reader.ReadString('\n')
+		ch = strings.TrimSpace(ch)
+		fmt.Print("Masukkan level volume (0.0 - 1.0): ")
+		volStr, _ := reader.ReadString('\n')
+		vol, err := strconv.ParseFloat(strings.TrimSpace(volStr), 64)
+		if err != nil || vol < 0.0 || vol > 1.0 {
+			fmt.Printf("%sVolume harus berupa angka desimal antara 0.0 dan 1.0!%s\n", colorRed, colorReset)
+			return
+		}
+		sendRequest("POST", "/audio/device/volume", true, map[string]any{"device_id": ch, "level": vol})
+	case 15:
+		fmt.Print("Masukkan ID/Nama Saluran Sonar (gaming, chat, media, mic): ")
+		ch, _ := reader.ReadString('\n')
+		ch = strings.TrimSpace(ch)
+		fmt.Print("Mute? (y/n): ")
+		muteStr, _ := reader.ReadString('\n')
+		muted := strings.ToLower(strings.TrimSpace(muteStr)) == "y"
+		sendRequest("POST", "/audio/device/mute", true, map[string]any{"device_id": ch, "mute": muted})
+	default:
+		fmt.Printf("%sPilihan menu tidak tersedia.%s\n", colorRed, colorReset)
+	}
+}
+
+func sendRequest(method string, endpoint string, usePin bool, payload any) {
+	fmt.Printf("\n%sMengirim request %s ke %s%s...%s\n", colorYellow, method, endpoint, colorReset)
+
+	var body io.Reader
+	if payload != nil {
+		jsonBytes, err := json.Marshal(payload)
+		if err != nil {
+			fmt.Printf("%s[ERR] JSON marshal failed: %v%s\n", colorRed, err, colorReset)
+			return
+		}
+		body = bytes.NewReader(jsonBytes)
+	}
+
+	req, err := http.NewRequest(method, serverURL+endpoint, body)
+	if err != nil {
+		fmt.Printf("%s[ERR] Gagal membuat request: %v%s\n", colorRed, err, colorReset)
+		return
+	}
+
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	if usePin {
+		req.Header.Set("X-PIN", pin)
+	}
+
+	client := &http.Client{Timeout: 8 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("%s[ERR] Koneksi ke server gagal: %v%s\n", colorRed, err, colorReset)
+		return
+	}
+	defer resp.Body.Close()
+
+	respBodyBytes, _ := io.ReadAll(resp.Body)
+	respBody := string(respBodyBytes)
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		fmt.Printf("%s[SUKSES] HTTP %d (%s)%s\n", colorGreen, resp.StatusCode, resp.Status, colorReset)
+	} else {
+		fmt.Printf("%s[GAGAL] HTTP %d (%s)%s\n", colorRed, resp.StatusCode, resp.Status, colorReset)
+	}
+
+	// Pretty print JSON response if possible
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, respBodyBytes, "", "  "); err == nil {
+		fmt.Printf("Response Body:\n%s\n", prettyJSON.String())
+	} else {
+		if strings.TrimSpace(respBody) != "" {
+			fmt.Printf("Response Body: %s\n", respBody)
+		} else {
+			fmt.Println("Response Body: (kosong)")
+		}
 	}
 }
 
