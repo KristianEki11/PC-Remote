@@ -1,0 +1,113 @@
+# ============================================================
+# PC REMOTE CONTROLLER — .gitignore
+# ============================================================
+
+# ────────────────────────────────────────────────────────────
+# COMPILED BINARIES & EXECUTABLES
+# ────────────────────────────────────────────────────────────
+# Server binaries (Go build output)
+server/*.exe
+server/dist/
+server/cmd/sendkey/*.exe
+server/cmd/test_windows_api/*.exe
+
+# Installer executable (goes to GitHub Releases, not repo)
+installer/PCRemoteSetup.exe
+installer/*.exe
+
+# Kill script output (kalau ada compiled version)
+*.exe
+
+# ────────────────────────────────────────────────────────────
+# FLUTTER / ANDROID BUILD OUTPUT
+# ────────────────────────────────────────────────────────────
+# Build artifacts
+app/build/
+
+# APK & AAB (goes to GitHub Releases, not repo)
+app/**/*.apk
+app/**/*.aab
+app/**/*.ipa
+
+# Flutter generated files
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+
+# ────────────────────────────────────────────────────────────
+# GO BUILD CACHE & TEMP
+# ────────────────────────────────────────────────────────────
+server/logs/
+server/*.log
+server/stdout.txt
+server/stderr.txt
+
+# Python migration artifacts (sudah dipindah ke reference)
+server/python_reference/__pycache__/
+server/__pycache__/
+server/build/
+**/__pycache__/
+*.pyc
+*.pyo
+*.spec
+
+# ────────────────────────────────────────────────────────────
+# ENVIRONMENT & SECRETS
+# ────────────────────────────────────────────────────────────
+# .env berisi PIN — jangan pernah di-push
+.env
+server/.env
+
+# Tapi .env.example boleh di-push (template tanpa nilai sensitif)
+!.env.example
+!server/.env.example
+
+# ────────────────────────────────────────────────────────────
+# RELEASE ARTIFACTS
+# ────────────────────────────────────────────────────────────
+# Semua file release ada di GitHub Releases, bukan di repo
+*.zip
+*.tar.gz
+*.rar
+release/
+
+# ────────────────────────────────────────────────────────────
+# WINDOWS JUNK
+# ────────────────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ────────────────────────────────────────────────────────────
+# IDE & EDITOR
+# ────────────────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.suo
+*.user
+.vs/
+
+# Tapi .vscode/extensions.json boleh di-push (rekomendasi extension)
+!.vscode/extensions.json
+
+# ────────────────────────────────────────────────────────────
+# AI AGENT CONFIG (optional — tergantung preference)
+# ────────────────────────────────────────────────────────────
+# Uncomment baris di bawah kalau .agent/ berisi API keys atau
+# data sensitif yang tidak mau di-share
+# .agent/
+
+# ────────────────────────────────────────────────────────────
+# INSTALLER TOOLS (binary tools, bukan script)
+# ────────────────────────────────────────────────────────────
+# NSSM binary — user download sendiri, jangan di-push ke repo
+installer/tools/nssm.exe
+
+# Tapi license.txt dan .nsi script tetap di-push
+!installer/license.txt
+!installer/PCRemoteSetup.nsi
+!installer/README.md

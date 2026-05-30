@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pycaw
+python-dotenv
+comtypes
+slowapi
+pystray
+Pillow
