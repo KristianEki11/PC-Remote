@@ -1,4 +1,4 @@
-# 📱 PC Remote Controller (v2.1.0)
+# 📱 PC Remote Controller (v2.1.1)
 
 A secure, high-performance, and lightweight remote control suite that allows you to manage your Windows PC directly from your Android device over a local WiFi network. 
 
@@ -72,7 +72,7 @@ If you just want to use the application to control your PC, you do not need to c
 
 ### Step 1: Download the Files
 1. Go to the [Releases](https://github.com/KristianEki11/PC-Remote/releases) page of this repository.
-2. Under the latest version (e.g. `v2.1.0`), download two files:
+2. Under the latest version (e.g. `v2.1.1`), download two files:
    - **`PCRemoteSetup.exe`** (Installer for your Windows PC)
    - **`app-release.apk`** (Application for your Android Phone)
 

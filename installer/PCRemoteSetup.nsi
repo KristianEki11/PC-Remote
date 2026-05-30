@@ -3,7 +3,7 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
-Name "PC Remote Controller v2.1.0"
+Name "PC Remote Controller v2.1.1"
 OutFile "PCRemoteSetup.exe"
 InstallDir "$PROGRAMFILES64\PCRemote"
 RequestExecutionLevel admin
