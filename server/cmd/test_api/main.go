@@ -142,14 +142,15 @@ func main() {
 	runTest("16. Open Browser URL Invalid (empty)", "POST", "/browser/open", true, "", map[string]any{"url": ""}, http.StatusBadRequest)
 
 	// 7. System operations (safe)
-	runTest("17. Cancel Scheduled Shutdown", "POST", "/system/shutdown/cancel", true, "", nil, http.StatusOK)
-	runTest("18. Shutdown Invalid Delay (-1m)", "POST", "/system/shutdown", true, "", map[string]any{"delay_minutes": -1}, http.StatusBadRequest)
+	runTest("17. Schedule Shutdown (10m delay)", "POST", "/system/shutdown", true, "", map[string]any{"delay_minutes": 10}, http.StatusOK)
+	runTest("18. Cancel Scheduled Shutdown", "POST", "/system/shutdown/cancel", true, "", nil, http.StatusOK)
+	runTest("19. Shutdown Invalid Delay (-1m)", "POST", "/system/shutdown", true, "", map[string]any{"delay_minutes": -1}, http.StatusBadRequest)
 
 	// 8. Sleep feature (only if flag is set)
 	if testSleep {
-		runTest("19. System Sleep (S0/S3 modern standby)", "POST", "/system/sleep", true, "", nil, http.StatusOK)
+		runTest("20. System Sleep (S0/S3 modern standby)", "POST", "/system/sleep", true, "", nil, http.StatusOK)
 	} else {
-		fmt.Printf("Test: %-55s [%sSKIP%s] (use -test-sleep flag)\n", "19. System Sleep", colorYellow, colorReset)
+		fmt.Printf("Test: %-55s [%sSKIP%s] (use -test-sleep flag)\n", "20. System Sleep", colorYellow, colorReset)
 	}
 
 	fmt.Println()
