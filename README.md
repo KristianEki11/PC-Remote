@@ -58,7 +58,7 @@ The project consists of three main components:
 │   ├── dist/                   # Directory containing compiled server binary
 │   └── go.mod                  # Go module definition
 ├── installer/                  # NSIS Installer project files
-│   ├── PCRemoteSetup.nsi      # NSIS installation script
+│   ├── PCRemoteSetup.nsi       # NSIS installation script
 │   └── license.txt             # License terms displayed in installer
 ├── BRS_PRD_PCRemote.md         # Original product requirements document
 └── MIGRATION_NOTES.md          # Reference notes for Python -> Go migration
