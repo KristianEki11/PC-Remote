@@ -30,10 +30,37 @@ class ApiService {
   // ──────────────────────────────────────
 
   static String _formatUrl(String input) {
-    if (!input.startsWith('http://') && !input.startsWith('https://')) {
-      return 'http://$input';
+    var host = input.trim();
+    if (host.isEmpty) return 'http://192.168.1.1:8000';
+
+    String scheme = 'http://';
+    if (host.startsWith('http://')) {
+      scheme = 'http://';
+      host = host.substring(7);
+    } else if (host.startsWith('https://')) {
+      scheme = 'https://';
+      host = host.substring(8);
     }
-    return input;
+
+    bool hasPort = false;
+    if (host.contains(']')) {
+      // IPv6 address
+      int closingBracket = host.indexOf(']');
+      if (host.substring(closingBracket).contains(':')) {
+        hasPort = true;
+      }
+    } else {
+      // IPv4 or hostname
+      if (host.contains(':')) {
+        hasPort = true;
+      }
+    }
+
+    if (!hasPort) {
+      host = '$host:8000';
+    }
+
+    return '$scheme$host';
   }
 
   static String get _baseUrl {
@@ -202,6 +229,21 @@ class ApiService {
 
   static Future<Map<String, dynamic>?> healthCheck() =>
       _get('/health', timeout: const Duration(seconds: 5));
+
+  static Future<String?> getLatestGitHubRelease() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.github.com/repos/KristianEki11/PC-Remote/releases/latest'),
+      ).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['tag_name'] as String?;
+      }
+    } catch (e) {
+      debugPrint('Gagal mengambil rilis GitHub terbaru: $e');
+    }
+    return null;
+  }
 
   // ──────────────────────────────────────
   // Audio

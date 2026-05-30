@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
@@ -18,11 +19,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  String _versionText = 'v2.2.0';
 
   @override
   void initState() {
     super.initState();
     _checkAutoLogin();
+    _loadVersionInfo();
   }
 
   Future<void> _checkAutoLogin() async {
@@ -44,6 +47,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (token != null) {
         if (!mounted) return;
         Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, token);
+
+        // Update server version cache in background
+        ApiService.healthCheck().then((health) {
+          if (health != null && health['version'] != null) {
+            prefs.setString('server_version', health['version'] as String);
+          }
+        });
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const DashboardScreen()),
@@ -73,6 +84,46 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _loadVersionInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 1. Jika di Web, coba ambil rilis terbaru dari GitHub
+    if (kIsWeb) {
+      final gitHubVersion = await ApiService.getLatestGitHubRelease();
+      if (gitHubVersion != null && mounted) {
+        setState(() {
+          _versionText = 'GitHub Release: $gitHubVersion';
+        });
+        return;
+      }
+    }
+    
+    // 2. Jika di APK/Mobile (atau fetch GitHub gagal), pakai cache versi server terakhir
+    final savedServerVersion = prefs.getString('server_version');
+    if (savedServerVersion != null && mounted) {
+      setState(() {
+        _versionText = 'Server v$savedServerVersion';
+      });
+    }
+    
+    // 3. Coba ping server secara asinkron untuk update versi terbaru di latar belakang
+    final savedIp = prefs.getString('last_ip');
+    if (savedIp != null) {
+      try {
+        final health = await ApiService.healthCheck();
+        if (health != null && health['version'] != null && mounted) {
+          final version = health['version'] as String;
+          await prefs.setString('server_version', version);
+          setState(() {
+            _versionText = 'Server v$version';
+          });
+        }
+      } catch (e) {
+        debugPrint('Gagal ping server untuk ambil versi: $e');
+      }
+    }
+  }
+
   Future<void> _handleLogin() async {
     final ip = _ipController.text.trim();
     final pin = _pinController.text.trim();
@@ -95,6 +146,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_ip', ip);
       await prefs.setString('auth_token', token);
+
+      // Update server version cache in background
+      ApiService.healthCheck().then((health) {
+        if (health != null && health['version'] != null) {
+          prefs.setString('server_version', health['version'] as String);
+        }
+      });
 
       if (!mounted) return;
 
@@ -202,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.url,
                       decoration: const InputDecoration(
                         labelText: 'IP Address / URL',
-                        hintText: '192.168.1.x:8000',
+                        hintText: '192.168.1.x',
                         prefixIcon: Icon(Icons.wifi, color: AppColors.textSecondary),
                       ),
                     ),
@@ -292,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 32),
                     // Version text
                     Text(
-                      'v1.0.0',
+                      _versionText,
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary.withValues(alpha: 0.5),

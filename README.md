@@ -1,4 +1,4 @@
-# 📱 PC Remote Controller (v2.1.1)
+# 📱 PC Remote Controller (v2.2.0)
 
 A secure, high-performance, and lightweight remote control suite that allows you to manage your Windows PC directly from your Android device over a local WiFi network. 
 
@@ -72,7 +72,7 @@ If you just want to use the application to control your PC, you do not need to c
 
 ### Step 1: Download the Files
 1. Go to the [Releases](https://github.com/KristianEki11/PC-Remote/releases) page of this repository.
-2. Under the latest version (e.g. `v2.1.1`), download two files:
+2. Under the latest version (e.g. `v2.2.0`), download two files:
    - **`PCRemoteSetup.exe`** (Installer for your Windows PC)
    - **`app-release.apk`** (Application for your Android Phone)
 
@@ -84,17 +84,28 @@ If you just want to use the application to control your PC, you do not need to c
 3. **Crucial (WiFi Network Profile)**: Once the installation is complete, a prompt will guide you to change your WiFi profile to **Private** (if not already set). This is required so Windows Defender Firewall allows your phone to connect to your PC.
 4. The installer automatically registers the server as a background service and starts it.
 
-### Step 3: Install the Android App
-1. Transfer **`app-release.apk`** to your Android phone (via USB, email, or Bluetooth).
-2. Open the file on your phone to install it. 
-   - *Note: If prompted, enable "Install from Unknown Sources" or allow your browser/file manager to install apps.*
+### Step 3: Install/Setup on Client Devices (Android & iPhone/iOS)
+
+* **Android Phone**:
+  1. Transfer **`app-release.apk`** to your Android phone (via USB, email, or Bluetooth).
+  2. Open the file on your phone to install it. 
+     - *Note: If prompted, enable "Install from Unknown Sources" or allow your browser/file manager to install apps.*
+
+* **iPhone / iOS Users**:
+  1. iPhone users can access the control dashboard using the web version of PC Remote.
+  2. Open the link to the deployed web client (e.g. `https://KristianEki11.github.io/PC-Remote/`) in **Safari**.
+  3. Tap the **Share** button, then select **Add to Home Screen** to install it as a Progressive Web App (PWA).
+
+* **macOS / Mac Support**:
+  * ⚠️ **Note**: macOS/Mac is **NOT supported** as a host server. The PC Remote server backend runs exclusively on Windows (leveraging Win32 APIs and COM interfaces for system volume and process management).
 
 ### Step 4: Connect & Control
-1. Make sure both your **PC and Phone are connected to the same WiFi network**.
+1. Make sure both your **PC and Client Device (Phone/Tablet) are connected to the same WiFi network**.
 2. Find your PC's IP Address (the installer shows this at the final screen, or you can find it by opening Command Prompt on your PC and typing `ipconfig` under your wireless adapter's IPv4 address).
-3. Open the **PC Remote** app on your phone.
-4. Enter your PC's IP address (e.g. `192.168.1.100`) and the **PIN** you configured in Step 2.
-5. Tap **Connect** and enjoy remote control!
+3. Open the **PC Remote** app (or the web PWA) on your phone.
+4. Enter your PC's IP address (e.g. `192.168.1.100`)—no port is required as it automatically defaults to `8000`.
+5. Enter the **PIN** you configured in Step 2.
+6. Tap **Connect** and enjoy remote control!
 
 ---
 
