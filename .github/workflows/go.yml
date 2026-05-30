@@ -1,0 +1,38 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build & Test (Go)
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        cache: true
+        cache-dependency-path: server/go.sum
+
+    - name: Install dependencies
+      run: |
+        cd server
+        go mod download
+
+    - name: Run Unit Tests
+      run: |
+        cd server
+        go test -v ./...
+
+    - name: Build Backend
+      run: |
+        cd server
+        go build -ldflags="-s -w -H windowsgui" -o dist/pcremote-server.exe main.go
