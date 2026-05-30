@@ -39,7 +39,7 @@ func main() {
 	// 2. Define flags
 	flag.StringVar(&serverURL, "url", defaultURL, "PCRemote Server URL")
 	flag.StringVar(&pin, "pin", defaultPin, "Authentication PIN")
-	flag.BoolVar(&testSleep, "test-sleep", false, "Test system sleep (WARNING: will trigger sleep/display off)")
+	flag.BoolVar(&testSleep, "test-sleep", true, "Test system sleep (WARNING: will trigger sleep/display off)")
 	flag.Parse()
 
 	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
