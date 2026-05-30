@@ -21,6 +21,9 @@ installer/*.exe
 # Local helper batch files (kill process & local testing)
 kill_server.bat
 server/scripts/test_*.bat
+test_sleep_api.ps1
+turn_off_monitor.ps1
+logs/
 
 # ────────────────────────────────────────────────────────────
 # FLUTTER / ANDROID BUILD OUTPUT

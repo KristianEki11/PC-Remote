@@ -608,10 +608,31 @@ func (RealAPI) SetChannelMute(channelName string, muted bool) error {
 	})
 }
 
-// runInUserSession executes a command in the active interactive user session
-// by registering a temporary scheduled task. This bypasses Session 0 isolation
-// which prevents Windows services from directly interacting with the user desktop.
+var (
+	kernel32              = syscall.NewLazyDLL("kernel32.dll")
+	pProcessIdToSessionId = kernel32.NewProc("ProcessIdToSessionId")
+)
+
+// runInUserSession executes a command in the active interactive user session.
+// If running in Session 0 (as a Windows service), it registers a temporary
+// scheduled task to bypass Session 0 isolation. Otherwise, it runs the command directly.
 func runInUserSession(command string) error {
+	var sessionID uint32
+	pid := uint32(os.Getpid())
+	ret, _, _ := pProcessIdToSessionId.Call(uintptr(pid), uintptr(unsafe.Pointer(&sessionID)))
+	
+	// If we are already running in an interactive user session (Session ID > 0),
+	// we do not need to use schtasks to bypass Session 0 isolation.
+	if ret != 0 && sessionID > 0 {
+		slog.Info("Running command directly (interactive session)", "session_id", sessionID, "command", command)
+		cmd := exec.Command("cmd.exe", "/c", command)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("direct command execution failed: %w — %s", err, string(out))
+		}
+		return nil
+	}
+
+	slog.Info("Running command via schtasks (Session 0 service)", "command", command)
 	// Use a unique task name to avoid conflicts
 	taskName := fmt.Sprintf("PCRemoteTask_%d", syscall.Getpid())
 
@@ -758,15 +779,37 @@ func enableShutdownPrivilege() error {
 }
 
 func (RealAPI) Sleep() error {
+	// 1. Try native SetSuspendState (works for traditional S3 sleep systems)
 	if err := enableShutdownPrivilege(); err != nil {
 		slog.Error("Failed to enable shutdown privilege", "error", err)
 	}
+	nativeRet, _, nativeErr := pSetSuspendState.Call(0, 0, 0)
+	slog.Info("Native SetSuspendState call completed", "ret", nativeRet, "err", nativeErr)
 
-	// SetSuspendState(hibernate=false, forceCritical=false, disableWakeEvent=false)
-	ret, _, err := pSetSuspendState.Call(0, 0, 0)
-	if ret == 0 {
-		return fmt.Errorf("SetSuspendState failed: %w", err)
+	// 2. Support for Modern Standby (S0) systems by turning off the display.
+	// We write a temporary, self-deleting PowerShell script in C:\Users\Public
+	// and run it via a temporary scheduled task in the user session.
+	psPath := `C:\Users\Public\sleep_temp.ps1`
+	psContent := `$code = '[DllImport("user32.dll")] public static extern int SendMessage(int h, int m, int w, int l);'
+$type = Add-Type -MemberDefinition $code -Name Win32 -PassThru
+$type::SendMessage(-1, 0x0112, 0xF170, 2)
+Remove-Item $PSCommandPath -Force
+`
+	if err := os.WriteFile(psPath, []byte(psContent), 0666); err == nil {
+		cmdStr := fmt.Sprintf(`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, psPath)
+		if runErr := runInUserSession(cmdStr); runErr != nil {
+			slog.Error("Failed to run Modern Standby sleep helper in user session", "error", runErr)
+			// Clean up file if task scheduling failed
+			if _, statErr := os.Stat(psPath); statErr == nil {
+				os.Remove(psPath)
+			}
+		} else {
+			slog.Info("Modern Standby sleep helper executed successfully in user session")
+		}
+	} else {
+		slog.Error("Failed to write temporary sleep helper script to C:\\Users\\Public", "error", err)
 	}
+
 	return nil
 }
 
