@@ -1,4 +1,4 @@
-# 📱 PC Remote Controller (v2.2.0)
+# 📱 PC Remote Controller (v2.2.1)
 
 A secure, high-performance, and lightweight remote control suite that allows you to manage your Windows PC directly from your Android device over a local WiFi network. 
 
@@ -34,7 +34,7 @@ The project consists of three main components:
 
 - 🔐 **PIN Authentication**: Secure authorization using custom PINs (4-8 digits). Supports atomic `.env` configuration updates directly from the Android app without restarting the server.
 - 🔊 **Advanced Audio Control**: Retrieve and modify system master volume and mute state. Supports deep COM interfaces to query application sessions (including support for SteelSeries Sonar virtual channels).
-- 🎵 **Media Injection**: Simulate system-wide media keys (Play/Pause, Next, Previous) to control media players (Spotify, YouTube, VLC, etc.) remotely.
+- 🎵 **Media Injection & Sync**: Simulate system-wide media keys (Play/Pause, Next, Previous) to control media players (Spotify, YouTube, VLC, etc.) remotely. Features real-time Windows Media Session synchronization (via WinRT GSMTC) to display active track titles, artist details, and playback state dynamically on the client dashboard.
 - 🌐 **Remote Browser Launch**: Open any URL instantly in Microsoft Edge or the system's default browser.
 - ⚡ **Power & Lifecycle Management**: Sleep, lock, restart, and shutdown commands. Includes cancellation endpoints to recover from accidental trigger commands.
 - 📦 **Seamless Windows Service**: Runs quietly in the background. The installer automatically manages service states (`nssm start/stop`) during upgrades.
@@ -191,9 +191,10 @@ All protected endpoints require the header `Authorization: Bearer <session_token
 | `/system/pin` | `POST` | Update the auth PIN atomically. |
 | `/audio/volume` | `GET` / `POST` | Get or set the master volume scalar (0-100). |
 | `/audio/mute` | `POST` | Toggle volume mute state. |
-| `/media/playpause` | `POST` | Inject Play/Pause key event. |
+| `/media/play` | `POST` | Inject Play/Pause key event. |
 | `/media/next` | `POST` | Inject Skip Next key event. |
 | `/media/prev` | `POST` | Inject Skip Previous key event. |
+| `/media/status` | `GET` | Retrieve active Windows GSMTC media playback status and metadata. |
 | `/browser/open` | `POST` | Opens the given URL in the default browser. |
 | `/system/lock` | `POST` | Lock the active Windows session. |
 | `/system/sleep` | `POST` | Suspend the system to S3 Sleep. |

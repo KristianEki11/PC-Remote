@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../utils/globals.dart';
 import '../screens/login_screen.dart';
+import '../utils/volume_helpers.dart';
 
 class ApiService {
   // ──────────────────────────────────────
@@ -265,7 +266,7 @@ class ApiService {
   }
 
   static Future<bool> setDeviceVolume(String deviceId, double level) =>
-      _post('/audio/device/volume', body: {'device_id': deviceId, 'level': level / 100.0});
+      _post('/audio/device/volume', body: {'device_id': deviceId, 'level': VolumeHelpers.toScalar(level)});
 
   static Future<bool> toggleDeviceMute(String deviceId, bool newMute) =>
       _post('/audio/device/mute', body: {'device_id': deviceId, 'mute': newMute});
@@ -278,6 +279,8 @@ class ApiService {
   static Future<bool> mediaPlayPause() => _post('/media/play');
   static Future<bool> mediaNext()      => _post('/media/next');
   static Future<bool> mediaPrev()      => _post('/media/prev');
+  static Future<Map<String, dynamic>?> getMediaStatus() =>
+      _get('/media/status', timeout: const Duration(seconds: 5), showSnackBar: false);
 
   // ──────────────────────────────────────
   // Browser

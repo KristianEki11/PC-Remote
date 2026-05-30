@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'audio_device.dart';
+import '../utils/volume_helpers.dart';
 
 class AudioState extends ChangeNotifier {
   double _masterVolume = 50.0;
   bool _isMasterMuted = false;
   bool _isLoadingMaster = false;
 
-  List<dynamic> _devices = [];
+  List<AudioDevice> _devices = [];
   bool _isLoadingDevices = false;
 
   double get masterVolume => _masterVolume;
   bool get isMasterMuted => _isMasterMuted;
   bool get isLoadingMaster => _isLoadingMaster;
 
-  List<dynamic> get devices => _devices;
+  List<AudioDevice> get devices => _devices;
   bool get isLoadingDevices => _isLoadingDevices;
 
   Future<void> fetchMasterVolume() async {
@@ -22,7 +24,7 @@ class AudioState extends ChangeNotifier {
     final data = await ApiService.getVolume();
     if (data != null) {
       // Server returns 0.0–1.0, slider uses 0–100
-      _masterVolume = ((data['level'] as num).toDouble() * 100).clamp(0.0, 100.0);
+      _masterVolume = VolumeHelpers.toSlider((data['level'] as num).toDouble());
       _isMasterMuted = data['muted'] as bool;
     }
     _isLoadingMaster = false;
@@ -34,7 +36,7 @@ class AudioState extends ChangeNotifier {
     notifyListeners();
     final data = await ApiService.getAudioDevices();
     if (data != null) {
-      _devices = List<dynamic>.from(data);
+      _devices = data.map((json) => AudioDevice.fromJson(json as Map<String, dynamic>)).toList();
     }
     _isLoadingDevices = false;
     notifyListeners();
@@ -47,7 +49,7 @@ class AudioState extends ChangeNotifier {
     notifyListeners();
 
     // Server expects 0.0–1.0 float; slider gives 0–100
-    final success = await ApiService.setVolume(level / 100.0);
+    final success = await ApiService.setVolume(VolumeHelpers.toScalar(level));
     if (!success) {
       _masterVolume = originalVolume;
       notifyListeners();
@@ -75,16 +77,18 @@ class AudioState extends ChangeNotifier {
 
   /// Optimistic update for setting individual device volume level
   Future<bool> setDeviceVolume(String deviceId, double level) async {
-    final index = _devices.indexWhere((d) => d['id'] == deviceId);
+    final index = _devices.indexWhere((d) => d.id == deviceId);
     if (index == -1) return false;
 
-    final originalVolume = (_devices[index]['volume'] as num).toDouble();
-    _devices[index]['volume'] = level;
+    final originalDevice = _devices[index];
+    _devices[index] = originalDevice.copyWith(volume: level);
     notifyListeners();
 
+    // Server expects volume as 0.0 - 1.0 (so toScalar is called in api_service or here,
+    // let's follow the api_service pattern: it divides by 100.0, which matches toScalar).
     final success = await ApiService.setDeviceVolume(deviceId, level);
     if (!success) {
-      _devices[index]['volume'] = originalVolume;
+      _devices[index] = originalDevice;
       notifyListeners();
       return false;
     }
@@ -93,16 +97,16 @@ class AudioState extends ChangeNotifier {
 
   /// Optimistic update for toggling individual device mute state
   Future<bool> toggleDeviceMute(String deviceId, bool targetMute) async {
-    final index = _devices.indexWhere((d) => d['id'] == deviceId);
+    final index = _devices.indexWhere((d) => d.id == deviceId);
     if (index == -1) return false;
 
-    final originalMuted = _devices[index]['muted'] as bool;
-    _devices[index]['muted'] = targetMute;
+    final originalDevice = _devices[index];
+    _devices[index] = originalDevice.copyWith(muted: targetMute);
     notifyListeners();
 
     final success = await ApiService.toggleDeviceMute(deviceId, targetMute);
     if (!success) {
-      _devices[index]['muted'] = originalMuted;
+      _devices[index] = originalDevice;
       notifyListeners();
       return false;
     }
@@ -117,9 +121,9 @@ class AudioState extends ChangeNotifier {
 
   /// Local immediate state updates for smooth sliding (does not call API)
   void updateDeviceVolumeLocally(String deviceId, double level) {
-    final index = _devices.indexWhere((d) => d['id'] == deviceId);
+    final index = _devices.indexWhere((d) => d.id == deviceId);
     if (index != -1) {
-      _devices[index]['volume'] = level;
+      _devices[index] = _devices[index].copyWith(volume: level);
       notifyListeners();
     }
   }

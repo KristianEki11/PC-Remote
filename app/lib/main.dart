@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'models/app_state.dart';
 import 'models/audio_state.dart';
+import 'models/media_state.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'utils/globals.dart';
@@ -16,6 +17,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => AudioState()),
+        ChangeNotifierProvider(create: (_) => MediaState()),
       ],
       child: const MyApp(),
     ),

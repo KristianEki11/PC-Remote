@@ -1,0 +1,168 @@
+//go:build windows
+
+package windows
+
+import (
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/exec"
+	"strconv"
+	"syscall"
+	"unsafe"
+)
+
+// ──────────────────────────────────────────────────────────
+// RealAPI — System control (lock, sleep, shutdown, restart)
+// ──────────────────────────────────────────────────────────
+
+func (RealAPI) LockWorkstation() error {
+	return runInUserSession(`rundll32.exe user32.dll,LockWorkStation`)
+}
+
+func (RealAPI) ScheduleShutdown(delaySeconds int) error {
+	delaySec := strconv.Itoa(delaySeconds)
+	cmd := exec.Command("shutdown", "/s", "/t", delaySec)
+	return cmd.Run()
+}
+
+func (RealAPI) CancelShutdown() error {
+	cmd := exec.Command("shutdown", "/a")
+	return cmd.Run()
+}
+
+var (
+	powrprof               = syscall.NewLazyDLL("powrprof.dll")
+	pSetSuspendState       = powrprof.NewProc("SetSuspendState")
+	advapi32               = syscall.NewLazyDLL("advapi32.dll")
+	pOpenProcessToken      = advapi32.NewProc("OpenProcessToken")
+	pLookupPrivilegeValue  = advapi32.NewProc("LookupPrivilegeValueW")
+	pAdjustTokenPrivileges = advapi32.NewProc("AdjustTokenPrivileges")
+)
+
+func enableShutdownPrivilege() error {
+	const (
+		TOKEN_ADJUST_PRIVILEGES = 0x0020
+		TOKEN_QUERY             = 0x0008
+		SE_PRIVILEGE_ENABLED    = 0x00000002
+	)
+
+	type LUID struct {
+		LowPart  uint32
+		HighPart int32
+	}
+
+	type LUID_AND_ATTRIBUTES struct {
+		Luid       LUID
+		Attributes uint32
+	}
+
+	type TOKEN_PRIVILEGES struct {
+		PrivilegeCount uint32
+		Privileges     [1]LUID_AND_ATTRIBUTES
+	}
+
+	currentProcess := syscall.Handle(^uintptr(0))
+	var token syscall.Handle
+	ret, _, err := pOpenProcessToken.Call(
+		uintptr(currentProcess),
+		TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY,
+		uintptr(unsafe.Pointer(&token)),
+	)
+	if ret == 0 {
+		return fmt.Errorf("OpenProcessToken failed: %w", err)
+	}
+	defer syscall.CloseHandle(token)
+
+	var luid LUID
+	privilegeName := syscall.StringToUTF16Ptr("SeShutdownPrivilege")
+	ret, _, err = pLookupPrivilegeValue.Call(
+		0,
+		uintptr(unsafe.Pointer(privilegeName)),
+		uintptr(unsafe.Pointer(&luid)),
+	)
+	if ret == 0 {
+		return fmt.Errorf("LookupPrivilegeValue failed: %w", err)
+	}
+
+	tp := TOKEN_PRIVILEGES{
+		PrivilegeCount: 1,
+		Privileges: [1]LUID_AND_ATTRIBUTES{
+			{
+				Luid:       luid,
+				Attributes: SE_PRIVILEGE_ENABLED,
+			},
+		},
+	}
+
+	ret, _, err = pAdjustTokenPrivileges.Call(
+		uintptr(token),
+		0,
+		uintptr(unsafe.Pointer(&tp)),
+		0,
+		0,
+		0,
+	)
+	if ret == 0 {
+		return fmt.Errorf("AdjustTokenPrivileges failed: %w", err)
+	}
+
+	return nil
+}
+
+func (RealAPI) Sleep() error {
+	// 1. Try native SetSuspendState (works for traditional S3 sleep systems)
+	if err := enableShutdownPrivilege(); err != nil {
+		slog.Error("Failed to enable shutdown privilege", "error", err)
+	}
+	nativeRet, _, nativeErr := pSetSuspendState.Call(0, 0, 0)
+	slog.Info("Native SetSuspendState call completed", "ret", nativeRet, "err", nativeErr)
+
+	// 2. Support for Modern Standby (S0) systems by turning off the display.
+	// We write a temporary, self-deleting PowerShell script in C:\Users\Public
+	// and run it via a temporary scheduled task in the user session.
+	psPath := `C:\Users\Public\sleep_temp.ps1`
+	psContent := `$code = '[DllImport("user32.dll")] public static extern int SendMessage(int h, int m, int w, int l);'
+$type = Add-Type -MemberDefinition $code -Name Win32 -PassThru
+$type::SendMessage(-1, 0x0112, 0xF170, 2)
+Remove-Item $PSCommandPath -Force
+`
+	if err := os.WriteFile(psPath, []byte(psContent), 0666); err == nil {
+		cmdStr := fmt.Sprintf(`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, psPath)
+		if runErr := runInUserSession(cmdStr); runErr != nil {
+			slog.Error("Failed to run Modern Standby sleep helper in user session", "error", runErr)
+			// Clean up file if task scheduling failed
+			if _, statErr := os.Stat(psPath); statErr == nil {
+				os.Remove(psPath)
+			}
+		} else {
+			slog.Info("Modern Standby sleep helper executed successfully in user session")
+		}
+	} else {
+		slog.Error("Failed to write temporary sleep helper script to C:\\Users\\Public", "error", err)
+	}
+
+	return nil
+}
+
+func (RealAPI) Restart() error {
+	cmd := exec.Command("shutdown", "/r", "/t", "5")
+	return cmd.Run()
+}
+
+// ──────────────────────────────────────────────────────────
+// RealAPI — Browser
+// ──────────────────────────────────────────────────────────
+
+func (RealAPI) OpenBrowser(url string) error {
+	if !hasHTTPPrefix(url) {
+		return errors.New("url must start with http:// or https://")
+	}
+	// Open via default browser in user session
+	return runInUserSession(fmt.Sprintf(`rundll32 url.dll,FileProtocolHandler %s`, url))
+}
+
+func hasHTTPPrefix(url string) bool {
+	return len(url) > 7 && (url[:7] == "http://" || (len(url) > 8 && url[:8] == "https://"))
+}

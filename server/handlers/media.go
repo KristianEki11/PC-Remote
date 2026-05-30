@@ -61,3 +61,22 @@ func MediaPrevHandler(w http.ResponseWriter, r *http.Request) {
 
 	sendJSON(w, http.StatusOK, map[string]any{"success": true})
 }
+
+// MediaStatusHandler handles GET /media/status
+// Retrieves the real-time playback status and metadata of active media sessions.
+func MediaStatusHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		sendJSON(w, http.StatusMethodNotAllowed, ErrorBody{Error: "method not allowed"})
+		return
+	}
+
+	status, err := winapi.GetMediaStatus()
+	if err != nil {
+		slog.Error("GetMediaStatus failed", "error", err)
+		sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: err.Error()})
+		return
+	}
+
+	sendJSON(w, http.StatusOK, status)
+}
+

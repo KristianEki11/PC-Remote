@@ -3,7 +3,7 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
-Name "PC Remote Controller v2.2.0"
+Name "PC Remote Controller v2.2.1"
 OutFile "PCRemoteSetup.exe"
 InstallDir "$PROGRAMFILES64\PCRemote"
 RequestExecutionLevel admin
@@ -78,6 +78,7 @@ Section "MainSection" SEC01
 
     ; Install files
     File "..\server\dist\pcremote-server.exe"
+    File "..\server\dist\sendkey.exe"
     File "tools\nssm.exe"
     File "..\server\favicon.ico"
 
@@ -126,6 +127,7 @@ Section "Uninstall"
 
     ; Delete files
     Delete "$INSTDIR\pcremote-server.exe"
+    Delete "$INSTDIR\sendkey.exe"
     Delete "$INSTDIR\nssm.exe"
     Delete "$INSTDIR\favicon.ico"
     Delete "$INSTDIR\.env"

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../models/audio_state.dart';
+import '../models/audio_device.dart';
 import '../utils/theme.dart';
 import 'shared_card.dart';
 
@@ -251,11 +252,11 @@ class _AudioCardState extends State<AudioCard> {
                 else
                   Column(
                     children: List.generate(displayDevices.length, (index) {
-                      final device = displayDevices[index];
-                      final deviceId = device['id'] as String;
-                      final name = device['name'] as String;
-                      final double level = (device['volume'] as num).toDouble();
-                      final isMuted = device['muted'] as bool;
+                      final AudioDevice device = displayDevices[index];
+                      final deviceId = device.id;
+                      final name = device.name;
+                      final double level = device.volume;
+                      final isMuted = device.muted;
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12.0),

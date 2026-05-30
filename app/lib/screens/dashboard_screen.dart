@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../models/app_state.dart';
+import '../models/media_state.dart';
 import '../widgets/audio_card.dart';
 import '../widgets/media_card.dart';
 import '../widgets/browser_card.dart';
@@ -48,6 +49,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   void dispose() {
     _pingTimer?.cancel();
     _pulseController.dispose();
+    try {
+      Provider.of<MediaState>(context, listen: false).stopPolling();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -61,6 +65,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     if (health != null && health['status'] == 'ok') {
       _failCount = 0;
       appState.setConnectionStatus(true);
+      if (mounted) {
+        Provider.of<MediaState>(context, listen: false).startPolling();
+      }
       if (!wasConnected && !_isFirstPing) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -75,6 +82,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       _failCount++;
       if (_failCount >= 3) {
         appState.setConnectionStatus(false);
+        if (mounted) {
+          Provider.of<MediaState>(context, listen: false).stopPolling();
+        }
         if (wasConnected && !_isFirstPing) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(

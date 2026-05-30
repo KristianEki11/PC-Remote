@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../models/media_state.dart';
 import '../utils/theme.dart';
 import 'shared_card.dart';
 
@@ -12,8 +13,6 @@ class MediaCard extends StatefulWidget {
 }
 
 class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMixin {
-  bool _isLoading = false;
-  bool _isPlaying = false; // local visual toggle
   late AnimationController _breathingController;
   late Animation<double> _breathingAnimation;
 
@@ -27,7 +26,6 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
     _breathingAnimation = Tween<double>(begin: 0.96, end: 1.04).animate(
       CurvedAnimation(parent: _breathingController, curve: Curves.easeInOut),
     );
-    _breathingController.repeat(reverse: true);
   }
 
   @override
@@ -36,18 +34,10 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  Future<void> _executeMediaAction(String actionName, Future<bool> Function() apiCall) async {
+  Future<void> _executeMediaAction(String actionName, Future<bool> Function() actionCall) async {
     HapticFeedback.mediumImpact();
-    setState(() => _isLoading = true);
-    final success = await apiCall();
-    
+    final success = await actionCall();
     if (mounted) {
-      setState(() {
-        _isLoading = false;
-        if (actionName == 'Play/Pause' && success) {
-          _isPlaying = !_isPlaying;
-        }
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success ? '$actionName berhasil' : 'Gagal mengeksekusi $actionName'),
@@ -60,13 +50,39 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final mediaState = context.watch<MediaState>();
+    final mediaStatus = mediaState.currentStatus;
+    final isPlaying = mediaStatus.isPlaying;
+    final isLoading = mediaState.isLoading;
+
+    // Handle breathing animation based on real play state
+    if (isPlaying) {
+      if (!_breathingController.isAnimating) {
+        _breathingController.repeat(reverse: true);
+      }
+    } else {
+      if (_breathingController.isAnimating) {
+        _breathingController.stop();
+        _breathingController.animateTo(0.5, duration: const Duration(milliseconds: 500));
+      }
+    }
+
+    // Determine titles dynamically
+    final displayTitle = mediaStatus.title.isNotEmpty ? mediaStatus.title : 'PC Media Output';
+    String displayArtist = 'Dihentikan';
+    if (isPlaying) {
+      displayArtist = mediaStatus.artist.isNotEmpty ? mediaStatus.artist : 'Sedang Diputar';
+    } else if (mediaStatus.status == 'Paused') {
+      displayArtist = 'Dijeda';
+    }
+
     return SharedCard(
       child: Column(
         children: [
           CardHeader(
             icon: Icons.music_note_rounded,
             title: 'Media Player',
-            trailing: _isLoading ? const CardLoadingIndicator() : null,
+            trailing: isLoading ? const CardLoadingIndicator() : null,
           ),
           const SizedBox(height: 24),
           // Cover art with breathing animation & glow
@@ -119,33 +135,43 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 20),
-          // Track Info Placeholder
-          const Text(
-            'PC Media Output',
-            style: TextStyle(
-              fontSize: 18,
+          // Track Info
+          Text(
+            displayTitle,
+            style: const TextStyle(
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
-            _isPlaying ? 'Sedang Diputar' : 'Dihentikan',
+            displayArtist,
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.textSecondary,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 16),
-          // Visualizer bars
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              return _VisualizerBar(
-                isPlaying: _isPlaying,
-                index: index,
-              );
-            }),
+          // Visualizer bars with fixed height to prevent card jiggling
+          SizedBox(
+            height: 40,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(5, (index) {
+                return _VisualizerBar(
+                  isPlaying: isPlaying,
+                  index: index,
+                );
+              }),
+            ),
           ),
           const SizedBox(height: 20),
           // Player Controls
@@ -157,12 +183,12 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
                 icon: Icons.skip_previous_rounded,
                 iconSize: 32,
                 color: AppColors.textPrimary.withValues(alpha: 0.8),
-                onPressed: _isLoading ? null : () => _executeMediaAction('Previous Track', ApiService.mediaPrev),
+                onPressed: isLoading ? null : () => _executeMediaAction('Previous Track', mediaState.prev),
               ),
               const SizedBox(width: 24),
               // Play/Pause Center Button
               GestureDetector(
-                onTap: _isLoading ? null : () => _executeMediaAction('Play/Pause', ApiService.mediaPlayPause),
+                onTap: isLoading ? null : () => _executeMediaAction('Play/Pause', mediaState.playPause),
                 child: Container(
                   width: 68,
                   height: 68,
@@ -179,7 +205,7 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
                     ],
                   ),
                   child: Icon(
-                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                     size: 38,
                     color: Colors.white,
                   ),
@@ -191,7 +217,7 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
                 icon: Icons.skip_next_rounded,
                 iconSize: 32,
                 color: AppColors.textPrimary.withValues(alpha: 0.8),
-                onPressed: _isLoading ? null : () => _executeMediaAction('Next Track', ApiService.mediaNext),
+                onPressed: isLoading ? null : () => _executeMediaAction('Next Track', mediaState.next),
               ),
             ],
           ),

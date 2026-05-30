@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  String _versionText = 'v2.2.0';
+  String _versionText = 'v2.2.1';
 
   @override
   void initState() {
@@ -202,9 +202,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 );
               },
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // App icon with gradient glow background
                     Container(
@@ -353,7 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       _versionText,
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary.withValues(alpha: 0.5),
+                        color: AppColors.textSecondary.withValues(alpha: 0.85),
                       ),
                     ),
                   ],
@@ -362,6 +364,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

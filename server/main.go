@@ -16,26 +16,7 @@ import (
 	"pcremote-server/middleware"
 )
 
-// corsMiddleware handles Cross-Origin Resource Sharing (CORS)
-// Allows requests from Flutter Web (GitHub Pages)
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-PIN, Authorization")
-		w.Header().Set("Access-Control-Max-Age", "3600")
-
-		// Handle preflight request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Continue to next handler
-		next.ServeHTTP(w, r)
-	})
-}
+// corsMiddleware has been moved to middleware/cors.go
 
 func main() {
 	// 1. Load config
@@ -83,6 +64,7 @@ func main() {
 	protectedMux.HandleFunc("/media/play", handlers.MediaPlayHandler)
 	protectedMux.HandleFunc("/media/next", handlers.MediaNextHandler)
 	protectedMux.HandleFunc("/media/prev", handlers.MediaPrevHandler)
+	protectedMux.HandleFunc("/media/status", handlers.MediaStatusHandler)
 
 	protectedMux.HandleFunc("/system/lock", handlers.SystemLockHandler)
 	protectedMux.HandleFunc("/system/shutdown", handlers.SystemShutdownHandler)
@@ -95,7 +77,7 @@ func main() {
 	mux.Handle("/", middleware.WithAuth(protectedMux))
 
 	// 4. Create the main server handler with logging and CORS middleware wrapping EVERYTHING
-	var handler http.Handler = corsMiddleware(middleware.WithLogging(mux))
+	var handler http.Handler = middleware.CORSMiddleware(middleware.WithLogging(mux))
 
 	server := &http.Server{
 		Addr:    ":" + config.App.Port,

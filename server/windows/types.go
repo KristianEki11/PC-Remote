@@ -24,6 +24,7 @@ type APIInterface interface {
 	SetDeviceVolume(id string, level float64) error
 	SetDeviceMute(id string, muted bool) error
 	SendMediaKey(action string) error
+	GetMediaStatus() (map[string]any, error)
 	LockWorkstation() error
 	OpenBrowser(url string) error
 	ScheduleShutdown(delaySeconds int) error
