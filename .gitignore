@@ -118,3 +118,6 @@ installer/tools/nssm.exe
 !installer/license.txt
 !installer/PCRemoteSetup.nsi
 !installer/README.md
+
+# QA/Document files to ignore
+BRS_PRD_PCRemote.md
