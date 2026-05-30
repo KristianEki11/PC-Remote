@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  String _versionText = 'v2.2.1';
+  String _versionText = 'v2.2.2';
 
   @override
   void initState() {

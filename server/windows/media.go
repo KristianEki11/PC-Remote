@@ -24,10 +24,10 @@ var (
 	pProcessIdToSessionId = kernel32.NewProc("ProcessIdToSessionId")
 )
 
-// runInUserSession executes a command in the active interactive user session.
+// runInUserSession executes an executable in the active interactive user session.
 // If running in Session 0 (as a Windows service), it registers a temporary
 // scheduled task to bypass Session 0 isolation. Otherwise, it runs the command directly.
-func runInUserSession(command string) error {
+func runInUserSession(exePath string, args ...string) error {
 	var sessionID uint32
 	pid := uint32(os.Getpid())
 	ret, _, _ := pProcessIdToSessionId.Call(uintptr(pid), uintptr(unsafe.Pointer(&sessionID)))
@@ -35,26 +35,34 @@ func runInUserSession(command string) error {
 	// If we are already running in an interactive user session (Session ID > 0),
 	// we do not need to use schtasks to bypass Session 0 isolation.
 	if ret != 0 && sessionID > 0 {
-		slog.Info("Running command directly (interactive session)", "session_id", sessionID, "command", command)
-		cmd := exec.Command("cmd.exe", "/c", command)
+		slog.Info("Running command directly (interactive session)", "session_id", sessionID, "exePath", exePath, "args", args)
+		cmd := exec.Command(exePath, args...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("direct command execution failed: %w — %s", err, string(out))
 		}
 		return nil
 	}
 
-	slog.Info("Running command via schtasks (Session 0 service)", "command", command)
+	slog.Info("Running command via schtasks (Session 0 service)", "exePath", exePath, "args", args)
 	// Use a unique task name with timestamp to avoid conflicts
 	taskName := fmt.Sprintf("PCRemoteTask_%d_%d", syscall.Getpid(), time.Now().UnixMilli())
 
-	// Register the task to run once immediately (interactive = all logged on users)
-	register := exec.Command("schtasks", "/create", "/tn", taskName,
-		"/tr", command,
-		"/sc", "ONCE",
-		"/st", "00:00",
-		"/f",
-		"/ru", "INTERACTIVE",
-	)
+	// Format /tr command line
+	// e.g. "C:\Program Files\PCRemote\sendkey.exe" play_pause
+	// We build this using SysProcAttr.CmdLine to avoid Go escaping problems
+	taskCmdLine := fmt.Sprintf(`"%s"`, exePath)
+	for _, arg := range args {
+		taskCmdLine += fmt.Sprintf(` "%s"`, arg)
+	}
+
+	cmdLine := fmt.Sprintf(`schtasks /create /tn "%s" /tr "%s" /sc ONCE /st 00:00 /f /ru INTERACTIVE`, 
+		taskName, strings.ReplaceAll(taskCmdLine, `"`, `\"`))
+
+	register := exec.Command("schtasks")
+	register.SysProcAttr = &syscall.SysProcAttr{
+		CmdLine: cmdLine,
+	}
+
 	if out, err := register.CombinedOutput(); err != nil {
 		return fmt.Errorf("schtasks /create failed: %w — %s", err, string(out))
 	}
@@ -94,11 +102,12 @@ func (RealAPI) SendMediaKey(action string) error {
 		}
 	}
 
-	cmd := fmt.Sprintf(`"%s" %s`, exePath, action)
-	return runInUserSession(cmd)
+	return runInUserSession(exePath, action)
 }
 
 const mediaStatusScript = `
+$OutputFile = "{{OUTPUT_FILE}}"
+
 [void][System.Reflection.Assembly]::LoadWithPartialName("System.Runtime.WindowsRuntime")
 [void][Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType=WindowsRuntime]
 [void][Windows.Media.Control.GlobalSystemMediaTransportControlsSession, Windows.Media.Control, ContentType=WindowsRuntime]
@@ -114,7 +123,7 @@ function Get-WinRTResult($asyncOp, [Type]$type) {
     return $task.Result
 }
 
-try {
+$result = try {
     $asyncOp = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()
     $manager = Get-WinRTResult $asyncOp ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
     $session = $manager.GetCurrentSession()
@@ -153,6 +162,12 @@ try {
         error = $_.Exception.Message
     } | ConvertTo-Json
 }
+
+if ($OutputFile) {
+    $result | Out-File -FilePath $OutputFile -Encoding utf8 -Force
+} else {
+    $result
+}
 `
 
 var (
@@ -168,8 +183,8 @@ func getAppDir() string {
 	return "."
 }
 
-// runInUserSessionWithOutput runs a command in the interactive session, redirecting its output to a file and reading it.
-func runInUserSessionWithOutput(command string, outputFile string) (string, error) {
+// runInUserSessionWithOutput runs a powershell script in the interactive session, redirecting its output to a file and reading it.
+func runInUserSessionWithOutput(scriptFile string, outputFile string) (string, error) {
 	_ = os.Remove(outputFile)
 
 	var sessionID uint32
@@ -178,42 +193,43 @@ func runInUserSessionWithOutput(command string, outputFile string) (string, erro
 
 	// If interactive session, run directly
 	if ret != 0 && sessionID > 0 {
-		slog.Info("Running media status directly (interactive session)", "command", command)
-		fullCommand := fmt.Sprintf(`cmd.exe /c %s > "%s" 2>&1`, command, outputFile)
-		cmd := exec.Command("cmd.exe", "/c", fullCommand)
-		if out, err := cmd.CombinedOutput(); err != nil {
+		slog.Info("Running media status directly (interactive session)", "scriptFile", scriptFile)
+		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptFile)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
 			return "", fmt.Errorf("direct run failed: %w - %s", err, string(out))
 		}
-	} else {
-		// Run via scheduled task bypass (Session 0)
-		slog.Info("Running media status via schtasks (Session 0 service)", "command", command)
-		taskName := fmt.Sprintf("PCRemoteTask_Media_%d_%d", syscall.Getpid(), time.Now().UnixMilli())
-		
-		// Redirect output to file
-		fullCommand := fmt.Sprintf(`cmd.exe /c %s > "%s" 2>&1`, command, outputFile)
-		
-		register := exec.Command("schtasks", "/create", "/tn", taskName,
-			"/tr", fullCommand,
-			"/sc", "ONCE",
-			"/st", "00:00",
-			"/f",
-			"/ru", "INTERACTIVE",
-		)
-		if out, err := register.CombinedOutput(); err != nil {
-			return "", fmt.Errorf("schtasks create failed: %w - %s", err, string(out))
-		}
-
-		run := exec.Command("schtasks", "/run", "/tn", taskName)
-		if out, err := run.CombinedOutput(); err != nil {
-			exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run() //nolint
-			return "", fmt.Errorf("schtasks run failed: %w - %s", err, string(out))
-		}
-
-		go func(tn string) {
-			time.Sleep(1500 * time.Millisecond)
-			exec.Command("schtasks", "/delete", "/tn", tn, "/f").Run()
-		}(taskName)
+		return string(out), nil
 	}
+
+	// Run via scheduled task bypass (Session 0)
+	slog.Info("Running media status via schtasks (Session 0 service)", "scriptFile", scriptFile)
+	taskName := fmt.Sprintf("PCRemoteTask_Media_%d_%d", syscall.Getpid(), time.Now().UnixMilli())
+
+	// Format command line for schtasks /create
+	taskCmdLine := fmt.Sprintf(`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, scriptFile)
+	cmdLine := fmt.Sprintf(`schtasks /create /tn "%s" /tr "%s" /sc ONCE /st 00:00 /f /ru INTERACTIVE`, 
+		taskName, strings.ReplaceAll(taskCmdLine, `"`, `\"`))
+
+	register := exec.Command("schtasks")
+	register.SysProcAttr = &syscall.SysProcAttr{
+		CmdLine: cmdLine,
+	}
+
+	if out, err := register.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("schtasks create failed: %w - %s", err, string(out))
+	}
+
+	run := exec.Command("schtasks", "/run", "/tn", taskName)
+	if out, err := run.CombinedOutput(); err != nil {
+		exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run() //nolint
+		return "", fmt.Errorf("schtasks run failed: %w - %s", err, string(out))
+	}
+
+	go func(tn string) {
+		time.Sleep(1500 * time.Millisecond)
+		exec.Command("schtasks", "/delete", "/tn", tn, "/f").Run()
+	}(taskName)
 
 	// Poll file read with 1.5s timeout
 	for i := 0; i < 15; i++ {
@@ -239,16 +255,26 @@ func (RealAPI) GetMediaStatus() (map[string]any, error) {
 	scriptFile := filepath.Join(appDir, "get_media_status_temp.ps1")
 	outputFile := filepath.Join(appDir, "media_status_temp.json")
 
+	// Determine if running in interactive session
+	var sessionID uint32
+	pid := uint32(os.Getpid())
+	ret, _, _ := pProcessIdToSessionId.Call(uintptr(pid), uintptr(unsafe.Pointer(&sessionID)))
+	isInteractive := ret != 0 && sessionID > 0
+
+	var scriptContent string
+	if isInteractive {
+		scriptContent = strings.ReplaceAll(mediaStatusScript, "{{OUTPUT_FILE}}", "")
+	} else {
+		scriptContent = strings.ReplaceAll(mediaStatusScript, "{{OUTPUT_FILE}}", outputFile)
+	}
+
 	// Write powershell script to file to avoid cmd escaping bugs
-	if err := os.WriteFile(scriptFile, []byte(mediaStatusScript), 0644); err != nil {
+	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write temp script file: %w", err)
 	}
 	defer os.Remove(scriptFile)
 
-	// Build command to execute script
-	runCmd := fmt.Sprintf(`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%s"`, scriptFile)
-
-	outStr, err := runInUserSessionWithOutput(runCmd, outputFile)
+	outStr, err := runInUserSessionWithOutput(scriptFile, outputFile)
 	if err != nil {
 		return nil, err
 	}

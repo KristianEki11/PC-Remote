@@ -50,13 +50,12 @@ class MediaState extends ChangeNotifier {
     _isLoading = false;
     if (!success) {
       _currentStatus = originalStatus;
-      notifyListeners();
-      return false;
     }
+    notifyListeners();
     
     // Quick refresh to align state
     Future.delayed(const Duration(milliseconds: 300), fetchMediaStatus);
-    return true;
+    return success;
   }
 
   /// Optimistic next track trigger
