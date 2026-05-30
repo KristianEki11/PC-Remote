@@ -22,14 +22,54 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSavedIp();
+    _checkAutoLogin();
   }
 
-  Future<void> _loadSavedIp() async {
+  Future<void> _checkAutoLogin() async {
     final prefs = await SharedPreferences.getInstance();
     final savedIp = prefs.getString('last_ip');
+    final savedToken = prefs.getString('auth_token');
+
     if (savedIp != null) {
       _ipController.text = savedIp;
+    }
+
+    if (savedIp != null && savedToken != null && savedToken.isNotEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Try login/ping to verify token
+      final token = await ApiService.login(savedIp, savedToken);
+      if (token != null) {
+        if (!mounted) return;
+        Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, token);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      } else {
+        // If login fails, check if the server is just offline
+        final health = await ApiService.healthCheck();
+        if (health == null) {
+          // Server is unreachable (offline). We still auto-login using cached details
+          // so the user can access the dashboard in offline mode.
+          if (!mounted) return;
+          Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, savedToken);
+          Provider.of<AppState>(context, listen: false).setConnectionStatus(false);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          );
+        } else {
+          // Server is online but credentials failed (PIN changed)
+          await prefs.remove('auth_token');
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'PIN telah berubah. Silakan login kembali.';
+          });
+        }
+      }
     }
   }
 

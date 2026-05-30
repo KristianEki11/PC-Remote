@@ -87,7 +87,7 @@ class _SystemCardState extends State<SystemCard> {
                   Text(
                     'Pilih durasi tunda sebelum PC mati:',
                     style: TextStyle(
-                      color: Theme.of(dialogCtx).colorScheme.onSurface.withOpacity(0.7),
+                      color: Theme.of(dialogCtx).colorScheme.onSurface.withValues(alpha: 0.7),
                       fontSize: 14,
                     ),
                   ),
@@ -128,7 +128,7 @@ class _SystemCardState extends State<SystemCard> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.withOpacity(0.5)),
+                              border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: DropdownButtonHideUnderline(
@@ -216,7 +216,7 @@ class _SystemCardState extends State<SystemCard> {
       ),
       selected: isSelected,
       selectedColor: Colors.red,
-      backgroundColor: Theme.of(dialogCtx).colorScheme.surface.withOpacity(0.5),
+      backgroundColor: Theme.of(dialogCtx).colorScheme.surface.withValues(alpha: 0.5),
       onSelected: (selected) {
         if (selected) {
           onSelected(index);
