@@ -99,7 +99,7 @@ $RECYCLE.BIN/
 # ────────────────────────────────────────────────────────────
 # Uncomment baris di bawah kalau .agent/ berisi API keys atau
 # data sensitif yang tidak mau di-share
-# .agent/
+.agent/
 
 # ────────────────────────────────────────────────────────────
 # INSTALLER TOOLS (binary tools, bukan script)
