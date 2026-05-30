@@ -25,9 +25,13 @@ func main() {
 
 	user32 := syscall.NewLazyDLL("user32.dll")
 	pKeybdEvent := user32.NewProc("keybd_event")
+	pMapVirtualKey := user32.NewProc("MapVirtualKeyW")
+
+	// Get actual hardware scan code
+	scanCode, _, _ := pMapVirtualKey.Call(uintptr(vk), 0)
 
 	// Key down (KEYEVENTF_EXTENDEDKEY = 0x0001)
-	pKeybdEvent.Call(uintptr(vk), 0, 1, 0)
+	pKeybdEvent.Call(uintptr(vk), scanCode, 1, 0)
 	// Key up (KEYEVENTF_KEYUP = 0x0002 | KEYEVENTF_EXTENDEDKEY = 0x0001)
-	pKeybdEvent.Call(uintptr(vk), 0, 2|1, 0)
+	pKeybdEvent.Call(uintptr(vk), scanCode, 2|1, 0)
 }

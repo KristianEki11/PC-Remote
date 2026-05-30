@@ -215,7 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     _buildInfoRow('IP Address', appState.ipAddress),
                     _buildInfoRow('Platform', 'Windows'),
                     _buildInfoRow('Status Koneksi', isConnected ? 'Online' : 'Offline', isStatus: true, statusVal: isConnected),
-                    _buildInfoRow('Versi Server', 'v2.2.4'),
+                    _buildInfoRow('Versi Server', 'v2.2.5'),
                     const SizedBox(height: 20),
                     // Action Buttons inside card
                     Row(
