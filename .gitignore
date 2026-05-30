@@ -18,6 +18,10 @@ installer/*.exe
 # Kill script output (kalau ada compiled version)
 *.exe
 
+# Local helper batch files (kill process & local testing)
+kill_server.bat
+server/scripts/test_*.bat
+
 # ────────────────────────────────────────────────────────────
 # FLUTTER / ANDROID BUILD OUTPUT
 # ────────────────────────────────────────────────────────────
