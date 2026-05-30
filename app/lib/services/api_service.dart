@@ -94,8 +94,9 @@ class ApiService {
     }
   }
 
-  static void _handleError(Object e) {
+  static void _handleError(Object e, {bool showSnackBar = true}) {
     debugPrint('API Error: $e');
+    if (!showSnackBar) return;
     final msg = e is TimeoutException
         ? 'Waktu koneksi habis (Timeout)'
         : 'Network Error: $e';
@@ -112,7 +113,7 @@ class ApiService {
   static const _timeout = Duration(seconds: 10);
 
   /// Generic GET request. Returns decoded JSON body or null.
-  static Future<Map<String, dynamic>?> _get(String path, {Duration? timeout}) async {
+  static Future<Map<String, dynamic>?> _get(String path, {Duration? timeout, bool showSnackBar = true}) async {
     try {
       final url = _baseUrl;
       final headers = _headers;
@@ -127,13 +128,13 @@ class ApiService {
       }
       return null;
     } catch (e) {
-      _handleError(e);
+      _handleError(e, showSnackBar: showSnackBar);
       return null;
     }
   }
 
   /// Generic POST request. Returns true if status 200.
-  static Future<bool> _post(String path, {Map<String, dynamic>? body}) async {
+  static Future<bool> _post(String path, {Map<String, dynamic>? body, bool showSnackBar = true}) async {
     try {
       final url = _baseUrl;
       final headers = _headers;
@@ -146,7 +147,7 @@ class ApiService {
       _check401(response);
       return response.statusCode == 200;
     } catch (e) {
-      _handleError(e);
+      _handleError(e, showSnackBar: showSnackBar);
       return false;
     }
   }
@@ -228,7 +229,7 @@ class ApiService {
   // ──────────────────────────────────────
 
   static Future<Map<String, dynamic>?> healthCheck() =>
-      _get('/health', timeout: const Duration(seconds: 5));
+      _get('/health', timeout: const Duration(seconds: 5), showSnackBar: false);
 
   static Future<String?> getLatestGitHubRelease() async {
     try {

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
@@ -656,8 +657,11 @@ func runInUserSession(command string) error {
 		return fmt.Errorf("schtasks /run failed: %w — %s", err, string(out))
 	}
 
-	// Short wait then delete the task
-	exec.Command("schtasks", "/delete", "/tn", taskName, "/f").Run() //nolint
+	// Delete the task in a background goroutine after a short sleep to allow the process to finish
+	go func(tn string) {
+		time.Sleep(1 * time.Second)
+		exec.Command("schtasks", "/delete", "/tn", tn, "/f").Run()
+	}(taskName)
 	return nil
 }
 

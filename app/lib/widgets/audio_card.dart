@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../models/app_state.dart';
 import '../models/audio_state.dart';
+import '../utils/theme.dart';
 import 'shared_card.dart';
 
 class AudioCard extends StatefulWidget {
@@ -12,11 +15,39 @@ class AudioCard extends StatefulWidget {
 }
 
 class _AudioCardState extends State<AudioCard> {
+  Timer? _pollingTimer;
+  bool _isDragging = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      _fetchInitialData();
+      _startPolling();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _fetchInitialData() {
+    if (!mounted) return;
+    final appState = Provider.of<AppState>(context, listen: false);
+    if (appState.isConnected) {
+      final audioState = Provider.of<AudioState>(context, listen: false);
+      audioState.fetchMasterVolume();
+      audioState.fetchDevices();
+    }
+  }
+
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (!mounted) return;
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (appState.isConnected && !_isDragging) {
         final audioState = Provider.of<AudioState>(context, listen: false);
         audioState.fetchMasterVolume();
         audioState.fetchDevices();
@@ -31,17 +62,26 @@ class _AudioCardState extends State<AudioCard> {
     if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Master mute diubah'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Master mute diubah'),
+          backgroundColor: Colors.green,
+          duration: Duration(milliseconds: 1500),
+        ),
       );
     } else {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal mengubah master mute'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Gagal mengubah master mute'),
+          backgroundColor: Colors.red,
+          duration: Duration(milliseconds: 1500),
+        ),
       );
     }
   }
 
   Future<void> _setMasterVolume(double val) async {
+    setState(() => _isDragging = false);
     final audioState = Provider.of<AudioState>(context, listen: false);
     final success = await audioState.setMasterVolume(val);
     if (!success && mounted) {
@@ -61,14 +101,11 @@ class _AudioCardState extends State<AudioCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Gagal mengubah mute perangkat'), backgroundColor: Colors.red),
       );
-    } else if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mute perangkat diubah'), backgroundColor: Colors.green),
-      );
     }
   }
 
   Future<void> _setDeviceVolume(String deviceId, double val) async {
+    setState(() => _isDragging = false);
     final audioState = Provider.of<AudioState>(context, listen: false);
     final success = await audioState.setDeviceVolume(deviceId, val);
     if (!success && mounted) {
@@ -81,138 +118,232 @@ class _AudioCardState extends State<AudioCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isConnected = context.watch<AppState>().isConnected;
     final audioState = context.watch<AudioState>();
     final displayDevices = audioState.devices.take(6).toList();
-    final bool isScrollable = displayDevices.length > 4;
 
     final masterVolume = audioState.masterVolume;
     final isMasterMuted = audioState.isMasterMuted;
     final isLoadingMaster = audioState.isLoadingMaster;
     final isLoadingDevices = audioState.isLoadingDevices;
 
-    return SharedCard(
-      child: Column(
-        children: [
-          CardHeader(
-            icon: Icons.volume_up,
-            title: 'Audio Master',
-            trailing: (isLoadingMaster || isLoadingDevices) ? const CardLoadingIndicator() : null,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(
-                  isMasterMuted ? Icons.volume_off : Icons.volume_up,
-                  color: isMasterMuted ? Colors.red : Theme.of(context).colorScheme.onSurface,
-                ),
-                onPressed: isLoadingMaster ? null : _toggleMasterMute,
-              ),
-              Expanded(
-                child: Slider(
-                  value: masterVolume,
-                  min: 0,
-                  max: 100,
-                  divisions: 100,
-                  activeColor: Colors.blue,
-                  onChanged: (val) => audioState.updateMasterVolumeLocally(val),
-                  onChangeEnd: _setMasterVolume,
-                ),
-              ),
-              SizedBox(
-                width: 40,
-                child: Text('${masterVolume.toInt()}%'),
-              ),
-            ],
-          ),
-          if (displayDevices.isNotEmpty) ...[
-            const Divider(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Devices',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
+    if (!isConnected) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.volume_off_rounded, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            const Text(
+              'Mixer Audio Offline',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             ),
-            const SizedBox(height: 12),
-            Container(
-              constraints: isScrollable ? const BoxConstraints(maxHeight: 220) : null,
-              child: isScrollable
-                  ? SingleChildScrollView(child: _buildDeviceList(displayDevices, audioState))
-                  : _buildDeviceList(displayDevices, audioState),
+            const SizedBox(height: 8),
+            const Text(
+              'Hubungkan server untuk mengontrol volume.',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ],
-        ],
-      ),
-    );
-  }
+        ),
+      );
+    }
 
-  Widget _buildDeviceList(List<dynamic> devices, AudioState audioState) {
-    return Column(
-      children: List.generate(devices.length, (index) {
-        final device = devices[index];
-        final deviceId = device['id'] as String;
-        final name = device['name'] as String;
-        final double level = (device['volume'] as num).toDouble();
-        final isMuted = device['muted'] as bool;
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8.0),
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: Row(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          // Master Volume Card
+          SharedCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    name,
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                CardHeader(
+                  icon: Icons.volume_up_rounded,
+                  title: 'Volume Master',
+                  trailing: (isLoadingMaster || isLoadingDevices) ? const CardLoadingIndicator() : null,
                 ),
-                Expanded(
-                  flex: 4,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 2.0,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: isLoadingMaster ? null : _toggleMasterMute,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isMasterMuted
+                              ? Colors.red.withValues(alpha: 0.15)
+                              : AppColors.primary.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: isMasterMuted
+                                ? Colors.red.withValues(alpha: 0.3)
+                                : AppColors.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Icon(
+                          isMasterMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                          color: isMasterMuted ? Colors.red : AppColors.primary,
+                          size: 26,
+                        ),
+                      ),
                     ),
-                    child: Slider(
-                      value: level,
-                      min: 0,
-                      max: 100,
-                      divisions: 100,
-                      activeColor: Colors.blueAccent,
-                      inactiveColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
-                      onChanged: (val) => audioState.updateDeviceVolumeLocally(deviceId, val),
-                      onChangeEnd: (val) => _setDeviceVolume(deviceId, val),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 6.0,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
+                          activeTrackColor: AppColors.primary,
+                          inactiveTrackColor: AppColors.surfaceLight,
+                        ),
+                        child: Slider(
+                          value: masterVolume,
+                          min: 0,
+                          max: 100,
+                          divisions: 100,
+                          onChanged: (val) {
+                            setState(() => _isDragging = true);
+                            audioState.updateMasterVolumeLocally(val);
+                          },
+                          onChangeEnd: _setMasterVolume,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    isMuted ? Icons.volume_off : Icons.volume_up,
-                    color: isMuted ? Colors.redAccent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    size: 20,
-                  ),
-                  onPressed: () => _toggleDeviceMute(deviceId, !isMuted),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
+                    Container(
+                      width: 50,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${masterVolume.toInt()}%',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        );
-      }),
+          const SizedBox(height: 16),
+          // Output Devices Card
+          SharedCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardHeader(
+                  icon: Icons.speaker_group_rounded,
+                  title: 'Saluran Output',
+                ),
+                const SizedBox(height: 18),
+                if (displayDevices.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(
+                      child: Text(
+                        'Tidak ada perangkat audio ditemukan',
+                        style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.7)),
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    children: List.generate(displayDevices.length, (index) {
+                      final device = displayDevices[index];
+                      final deviceId = device['id'] as String;
+                      final name = device['name'] as String;
+                      final double level = (device['volume'] as num).toDouble();
+                      final isMuted = device['muted'] as bool;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12.0),
+                        padding: const EdgeInsets.all(12.0),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLight.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.audiotrack_rounded, size: 16, color: AppColors.textSecondary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => _toggleDeviceMute(deviceId, !isMuted),
+                                  child: Icon(
+                                    isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                                    color: isMuted ? Colors.redAccent : AppColors.textSecondary,
+                                    size: 20,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      trackHeight: 4.0,
+                                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
+                                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 16.0),
+                                      activeTrackColor: Colors.blueAccent,
+                                      inactiveTrackColor: AppColors.surfaceLight,
+                                    ),
+                                    child: Slider(
+                                      value: level,
+                                      min: 0,
+                                      max: 100,
+                                      divisions: 100,
+                                      onChanged: (val) {
+                                        setState(() => _isDragging = true);
+                                        audioState.updateDeviceVolumeLocally(deviceId, val);
+                                      },
+                                      onChangeEnd: (val) => _setDeviceVolume(deviceId, val),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 36,
+                                  child: Text(
+                                    '${level.toInt()}%',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

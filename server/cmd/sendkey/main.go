@@ -24,13 +24,17 @@ func main() {
 	}
 	action := strings.ToLower(os.Args[1])
 	var vk uint16
+	var scan uint16
 	switch action {
 	case "play_pause":
 		vk = 0xB3
+		scan = 0x22
 	case "next":
 		vk = 0xB0
+		scan = 0x19
 	case "prev":
 		vk = 0xB1
+		scan = 0x10
 	default:
 		return
 	}
@@ -41,16 +45,18 @@ func main() {
 	var input kbInput
 	input.Type = 1 // INPUT_KEYBOARD
 	input.Vk = vk
+	input.Scan = scan
 
-	// Key down
+	// Key down (Extended key)
+	input.Flags = 0x0001 // KEYEVENTF_EXTENDEDKEY
 	pSendInput.Call(
 		1,
 		uintptr(unsafe.Pointer(&input)),
 		unsafe.Sizeof(input),
 	)
 
-	// Key up
-	input.Flags = 0x0002 // KEYEVENTF_KEYUP
+	// Key up (KeyUp + Extended key)
+	input.Flags = 0x0002 | 0x0001 // KEYEVENTF_KEYUP | KEYEVENTF_EXTENDEDKEY
 	pSendInput.Call(
 		1,
 		uintptr(unsafe.Pointer(&input)),

@@ -1,7 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 
-/// Shared card container with gradient border and elevated shadow.
+/// Shared card container with glassmorphic blur, gradient border, and elevated shadow.
 class SharedCard extends StatelessWidget {
   final Widget child;
 
@@ -15,26 +16,32 @@ class SharedCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.05),
-            blurRadius: 20,
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 24,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Container(
-        margin: const EdgeInsets.all(1), // 1px gradient border
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: child,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            margin: const EdgeInsets.all(1), // 1px gradient border
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(18.0),
+              child: child,
+            ),
+          ),
         ),
       ),
     );
