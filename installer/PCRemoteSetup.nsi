@@ -104,6 +104,10 @@ Section "MainSection" SEC01
     ; Create Desktop shortcut for the Dashboard
     CreateShortCut "$DESKTOP\PCRemote Dashboard.lnk" "$INSTDIR\PCRemoteDashboard.exe" "" "$INSTDIR\favicon.ico"
 
+    ; Create Start Menu shortcut for the Dashboard (so it appears in Windows Search)
+    CreateDirectory "$SMPROGRAMS\PCRemote"
+    CreateShortCut "$SMPROGRAMS\PCRemote\PCRemote Dashboard.lnk" "$INSTDIR\PCRemoteDashboard.exe" "" "$INSTDIR\favicon.ico"
+
     ; Open firewall
     nsExec::ExecToLog 'netsh advfirewall firewall add rule name="PCRemote Server" dir=in action=allow protocol=TCP localport=8000'
 
@@ -136,6 +140,8 @@ Section "Uninstall"
     ; Remove shortcuts
     Delete "$SMSTARTUP\PCRemoteServer.lnk"
     Delete "$DESKTOP\PCRemote Dashboard.lnk"
+    Delete "$SMPROGRAMS\PCRemote\PCRemote Dashboard.lnk"
+    RMDir "$SMPROGRAMS\PCRemote"
 
     ; Remove firewall rule
     nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="PCRemote Server"'
