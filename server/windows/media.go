@@ -96,13 +96,17 @@ func runInUserSession(exePath string, args ...string) error {
 func (RealAPI) SendMediaKey(action string) error {
 	action = strings.ToLower(action)
 	var method string
+	var vkCode int
 	switch action {
 	case "play_pause":
 		method = "TryTogglePlayPauseAsync"
+		vkCode = 0xB3 // VK_MEDIA_PLAY_PAUSE
 	case "next":
 		method = "TrySkipNextAsync"
+		vkCode = 0xB0 // VK_MEDIA_NEXT_TRACK
 	case "prev":
 		method = "TrySkipPreviousAsync"
+		vkCode = 0xB1 // VK_MEDIA_PREV_TRACK
 	default:
 		return fmt.Errorf("unknown media action: %q", action)
 	}
@@ -117,10 +121,25 @@ $task = $genericMethod.Invoke($null, @([Windows.Media.Control.GlobalSystemMediaT
 $manager = $task.Result
 
 $session = $manager.GetCurrentSession()
+$success = $false
 if ($session) {
-    $session.%s()
+    # Try calling the SMTC method (async)
+    $asyncOp = $session.%s()
+    $success = $true
 }
-`, method)
+
+if (-not $success) {
+    # Fallback: Simulate a global media key press if no SMTC session is active.
+    # VK_MEDIA_NEXT_TRACK = 0xB0, VK_MEDIA_PREV_TRACK = 0xB1, VK_MEDIA_PLAY_PAUSE = 0xB3
+    $signature = @'
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, uint dwExtraInfo);
+'@
+    $type = Add-Type -MemberDefinition $signature -Name "Keyboard" -Namespace "Win32" -PassThru
+    $type::keybd_event(%d, 0, 0, 0) # Key Down
+    $type::keybd_event(%d, 0, 2, 0) # Key Up
+}
+`, method, vkCode, vkCode)
 
 	appDir := getAppDir()
 	scriptFile := filepath.Join(appDir, "send_media_temp.ps1")
@@ -131,7 +150,6 @@ if ($session) {
 
 	_, err := runInUserSessionWithOutput(scriptFile, filepath.Join(appDir, "send_media_out.txt"))
 	if err != nil {
-		// Log but don't fail immediately, as the async nature might just mean no output
 		slog.Warn("SMTC script execution", "error", err)
 	}
 	return nil
