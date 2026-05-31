@@ -1,4 +1,4 @@
-# 📱 PC Remote Controller (v2.2.6)
+# 📱 PC Remote Controller (v2.2.7)
 
 A secure, high-performance, and lightweight remote control suite that allows you to manage your Windows PC directly from your Android device over a local WiFi network. 
 

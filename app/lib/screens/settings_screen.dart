@@ -305,7 +305,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline, color: AppColors.primary),
             title: Text('Versi Aplikasi'),
-            subtitle: Text('v2.2.6'),
+            subtitle: Text('v2.2.7'),
           ),
         ],
       ),
