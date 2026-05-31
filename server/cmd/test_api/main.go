@@ -8,8 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -92,12 +94,16 @@ func main() {
 }
 
 func printMenu() {
-	// Clean screen using ANSI escape code
 	fmt.Print("\033[H\033[2J")
 	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
-	fmt.Printf("%s   PC Remote Controller — Interactive API Test Console%s\n", colorBold+colorCyan, colorReset)
+	fmt.Printf("%s        PC REMOTE DASHBOARD & API TEST CONSOLE%s\n", colorBold+colorCyan, colorReset)
 	fmt.Printf("   Target Server: %s%s%s | PIN: %s%s%s\n", colorBold, serverURL, colorReset, colorBold, pin, colorReset)
 	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
+	fmt.Println(" [MANAJEMEN SERVER]")
+	fmt.Printf("  %s111. Jalankan PC Remote Server (Background)%s\n", colorGreen, colorReset)
+	fmt.Printf("  %s222. Hentikan PC Remote Server%s\n", colorRed, colorReset)
+	fmt.Printf("%s------------------------------------------------------------%s\n", colorBlue, colorReset)
+	fmt.Println(" [PENGUJIAN API]")
 	fmt.Println("  1. Health Check (Tanpa Auth)")
 	fmt.Println("  2. Cek Status Audio Utama (Volume, Mute, Device)")
 	fmt.Println("  3. Set Volume Utama (0.0 - 1.0)")
@@ -113,12 +119,34 @@ func printMenu() {
 	fmt.Println(" 13. Cek Status Saluran Audio (SteelSeries Sonar)")
 	fmt.Println(" 14. Set Volume Saluran Audio Sonar")
 	fmt.Println(" 15. Toggle Mute Saluran Audio Sonar")
-	fmt.Println("  0. Keluar")
+	fmt.Println("  0. Keluar dari Dashboard")
 	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
 }
 
 func handleChoice(choice int) {
 	switch choice {
+	case 111:
+		fmt.Printf("%sMenjalankan Server PC Remote...%s\n", colorYellow, colorReset)
+		// Jalankan exe tanpa menahan console (detach)
+		exePath := ".\\pcremote-server.exe"
+		if _, err := os.Stat(exePath); os.IsNotExist(err) {
+			exePath = "C:\\Program Files\\PCRemote\\pcremote-server.exe"
+		}
+		cmd := exec.Command(exePath)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		if err := cmd.Start(); err != nil {
+			fmt.Printf("%sGagal menjalankan server: %v%s\n", colorRed, err, colorReset)
+		} else {
+			fmt.Printf("%s[SUKSES] Server berjalan di background (PID: %d)%s\n", colorGreen, cmd.Process.Pid, colorReset)
+		}
+	case 222:
+		fmt.Printf("%sMematikan Server PC Remote...%s\n", colorYellow, colorReset)
+		cmd := exec.Command("taskkill", "/F", "/IM", "pcremote-server.exe")
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("%sGagal menghentikan server (mungkin tidak berjalan).%s\n", colorYellow, colorReset)
+		} else {
+			fmt.Printf("%s[SUKSES] Server berhasil dihentikan.%s\n", colorGreen, colorReset)
+		}
 	case 1:
 		sendRequest("GET", "/health", false, nil)
 	case 2:

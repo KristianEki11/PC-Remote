@@ -95,18 +95,46 @@ func runInUserSession(exePath string, args ...string) error {
 
 func (RealAPI) SendMediaKey(action string) error {
 	action = strings.ToLower(action)
-	if action != "play_pause" && action != "next" && action != "prev" {
+	var method string
+	switch action {
+	case "play_pause":
+		method = "TryTogglePlayPauseAsync"
+	case "next":
+		method = "TrySkipNextAsync"
+	case "prev":
+		method = "TrySkipPreviousAsync"
+	default:
 		return fmt.Errorf("unknown media action: %q", action)
 	}
 
-	// First try resolving using short path in Program Files
-	exePath := filepath.Join("C:\\PROGRA~1\\PCRemote", "sendkey.exe")
-	if _, err := os.Stat(exePath); os.IsNotExist(err) {
-		// Fallback: same directory as the server executable (which is getAppDir())
-		exePath = filepath.Join(getAppDir(), "sendkey.exe")
-	}
+	script := fmt.Sprintf(`
+[void][System.Reflection.Assembly]::LoadWithPartialName("System.Runtime.WindowsRuntime")
+[void][Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType=WindowsRuntime]
 
-	return runInUserSession(exePath, action)
+$asTaskMethod = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.IsGenericMethod -and $_.GetParameters().Length -eq 1 } | Select-Object -First 1
+$genericMethod = $asTaskMethod.MakeGenericMethod([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
+$task = $genericMethod.Invoke($null, @([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()))
+$manager = $task.Result
+
+$session = $manager.GetCurrentSession()
+if ($session) {
+    $session.%s()
+}
+`, method)
+
+	appDir := getAppDir()
+	scriptFile := filepath.Join(appDir, "send_media_temp.ps1")
+	if err := os.WriteFile(scriptFile, []byte(script), 0644); err != nil {
+		return fmt.Errorf("failed to write media script: %v", err)
+	}
+	defer os.Remove(scriptFile)
+
+	_, err := runInUserSessionWithOutput(scriptFile, filepath.Join(appDir, "send_media_out.txt"))
+	if err != nil {
+		// Log but don't fail immediately, as the async nature might just mean no output
+		slog.Warn("SMTC script execution", "error", err)
+	}
+	return nil
 }
 
 const mediaStatusScript = `

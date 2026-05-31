@@ -83,7 +83,7 @@ Section "MainSection" SEC01
 
     ; Install files
     File "..\server\dist\pcremote-server.exe"
-    File "..\server\dist\sendkey.exe"
+    File "..\server\dist\PCRemoteDashboard.exe"
     File "..\server\favicon.ico"
 
     ; Create logs directory
@@ -95,8 +95,14 @@ Section "MainSection" SEC01
     FileWrite $0 "PORT=8000$\r$\n"
     FileClose $0
 
-    ; Register as Startup Application in HKLM Registry Run key
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer" '"$INSTDIR\pcremote-server.exe"'
+    ; Remove old registry startup if exists from v2.2.5
+    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer"
+
+    ; Create shortcut in User's Startup folder for Autostart
+    CreateShortCut "$SMSTARTUP\PCRemoteServer.lnk" "$INSTDIR\pcremote-server.exe" "" "$INSTDIR\favicon.ico" 0 SW_SHOWMINIMIZED
+
+    ; Create Desktop shortcut for the Dashboard
+    CreateShortCut "$DESKTOP\PCRemote Dashboard.lnk" "$INSTDIR\PCRemoteDashboard.exe" "" "$INSTDIR\favicon.ico"
 
     ; Open firewall
     nsExec::ExecToLog 'netsh advfirewall firewall add rule name="PCRemote Server" dir=in action=allow protocol=TCP localport=8000'
@@ -104,7 +110,7 @@ Section "MainSection" SEC01
     ; Start the application directly in the user session
     Exec '"$INSTDIR\pcremote-server.exe"'
 
-    MessageBox MB_OK|MB_ICONINFORMATION "PC Remote Server installed successfully!$\r$\nServer is running on port 8000.$\r$\nConnect your Android app to: http://[your-pc-ip]:8000"
+    MessageBox MB_OK|MB_ICONINFORMATION "PC Remote Server installed successfully!$\r$\nServer is running on port 8000.$\r$\nConnect your Android app to: http://[your-pc-ip]:8000$\r$\n$\r$\nYou can now manage the server using 'PCRemote Dashboard' on your Desktop."
 
     MessageBox MB_YESNO|MB_ICONEXCLAMATION "⚠️ IMPORTANT: Network Profile Check$\r$\n$\r$\nMake sure your WiFi is set to PRIVATE network.$\r$\n$\r$\nOpen: Settings -> Network -> [Your WiFi] -> Properties$\r$\nSet to: Private Network$\r$\n$\r$\nWithout this, your phone cannot connect even if$\r$\nthe server is running correctly.$\r$\n$\r$\nOpen Network Settings now?" IDYES OpenNetwork IDNO SkipNetwork
 
@@ -127,12 +133,16 @@ Section "Uninstall"
     ; Remove registry startup
     DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer"
 
+    ; Remove shortcuts
+    Delete "$SMSTARTUP\PCRemoteServer.lnk"
+    Delete "$DESKTOP\PCRemote Dashboard.lnk"
+
     ; Remove firewall rule
     nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="PCRemote Server"'
 
     ; Delete files
     Delete "$INSTDIR\pcremote-server.exe"
-    Delete "$INSTDIR\sendkey.exe"
+    Delete "$INSTDIR\PCRemoteDashboard.exe"
     Delete "$INSTDIR\favicon.ico"
     Delete "$INSTDIR\.env"
     Delete "$INSTDIR\uninstall.exe"
