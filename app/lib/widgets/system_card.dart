@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../utils/theme.dart';
+import '../utils/globals.dart';
 import 'shared_card.dart';
 import 'scale_button.dart';
 
@@ -24,10 +25,11 @@ class _SystemCardState extends State<SystemCard> {
 
     if (mounted) {
       setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      snackbarKey.currentState?.showSnackBar(
         SnackBar(
           content: Text(success ? '$action berhasil' : 'Gagal mengeksekusi $action'),
           backgroundColor: success ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -254,33 +256,42 @@ class _SystemCardState extends State<SystemCard> {
 
   Widget _buildButton(String label, IconData icon, Color color, VoidCallback? onPressed) {
     return ScaleButtonWrapper(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          boxShadow: AppClays.button(),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 22),
+          splashColor: color.withValues(alpha: 0.2),
+          highlightColor: color.withValues(alpha: 0.1),
+          onTap: _isProcessing ? null : onPressed,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppClays.button(),
             ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: color,
-              ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: color,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
