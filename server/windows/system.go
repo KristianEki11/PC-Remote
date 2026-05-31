@@ -158,17 +158,16 @@ func (RealAPI) OpenBrowser(url string) error {
 	if !hasHTTPPrefix(url) {
 		return errors.New("url must start with http:// or https://")
 	}
-	// Try launching via explorer.exe first. This de-elevates the call on Windows
-	// so that it opens in the logged-in user's default browser (e.g., Chrome)
-	// instead of falling back to Edge under the Administrator/System context.
-	err := runInUserSession("explorer.exe", url)
+	// Use Start() instead of CombinedOutput() — we only care that the process
+	// was launched successfully, not its exit code. explorer.exe may exit with
+	// non-zero even when it successfully opens the URL.
+	err := runInUserSessionStart("explorer.exe", url)
 	if err == nil {
 		return nil
 	}
 	slog.Warn("Failed to open browser via explorer.exe, falling back to rundll32", "error", err)
-
 	// Fallback to standard FileProtocolHandler
-	return runInUserSession("rundll32", "url.dll,FileProtocolHandler", url)
+	return runInUserSessionStart("rundll32", "url.dll,FileProtocolHandler", url)
 }
 
 func hasHTTPPrefix(url string) bool {

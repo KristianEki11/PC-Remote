@@ -89,6 +89,64 @@ func runInUserSession(exePath string, args ...string) error {
 	return nil
 }
 
+// runInUserSessionStart is like runInUserSession but uses Start() instead of
+// CombinedOutput(). It only cares that the process was launched, not its exit code.
+// This is essential for commands like explorer.exe <url> which may exit non-zero
+// even when the URL is successfully opened.
+func runInUserSessionStart(exePath string, args ...string) error {
+	var sessionID uint32
+	pid := uint32(os.Getpid())
+	ret, _, _ := pProcessIdToSessionId.Call(uintptr(pid), uintptr(unsafe.Pointer(&sessionID)))
+
+	if ret != 0 && sessionID > 0 {
+		slog.Info("Running command directly (interactive session)", "session_id", sessionID, "exePath", exePath, "args", args)
+		cmd := exec.Command(exePath, args...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("cmd.Start failed: %w", err)
+		}
+		cmd.Process.Release()
+		return nil
+	}
+
+	slog.Info("Running command via schtasks (Session 0 service)", "exePath", exePath, "args", args)
+	taskName := fmt.Sprintf("PCRemoteTask_%d_%d", syscall.Getpid(), time.Now().UnixMilli())
+
+	taskCmdLine := exePath
+	for _, arg := range args {
+		taskCmdLine += " " + arg
+	}
+
+	register := exec.Command("schtasks", "/create", "/tn", taskName,
+		"/tr", taskCmdLine,
+		"/sc", "ONCE",
+		"/st", "00:00",
+		"/f",
+		"/ru", "INTERACTIVE",
+	)
+	register.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if out, err := register.CombinedOutput(); err != nil {
+		return fmt.Errorf("schtasks /create failed: %w — %s", err, string(out))
+	}
+
+	run := exec.Command("schtasks", "/run", "/tn", taskName)
+	run.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if out, err := run.CombinedOutput(); err != nil {
+		delCmd := exec.Command("schtasks", "/delete", "/tn", taskName, "/f")
+		delCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		delCmd.Run()
+		return fmt.Errorf("schtasks /run failed: %w — %s", err, string(out))
+	}
+
+	go func(tn string) {
+		time.Sleep(1 * time.Second)
+		delCmd := exec.Command("schtasks", "/delete", "/tn", tn, "/f")
+		delCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		delCmd.Run()
+	}(taskName)
+	return nil
+}
+
 // ──────────────────────────────────────────────────────────
 // RealAPI — Media methods
 // ──────────────────────────────────────────────────────────
