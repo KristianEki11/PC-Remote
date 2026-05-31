@@ -10,16 +10,16 @@ This repository contains the complete codebase for both the **Go-based backend s
 
 The project consists of three main components:
 
-1. **Go Server (`/server`)**: A lightweight, concurrency-safe Windows service that listens for authenticated commands from the mobile app and executes them using Windows API integrations and COM interfaces.
+1. **Go Server (`/server`)**: A lightweight, concurrency-safe Windows background application that listens for authenticated commands from the mobile app and executes them using Windows API integrations and COM interfaces.
 2. **Flutter App (`/app`)**: A modern, responsive Android application featuring a clean dark-mode dashboard to control system volume, media playback, browser links, and power states.
-3. **NSIS Installer (`/installer`)**: An installer script that packs the server executable, configures it as a Windows Service via NSSM, prompts for firewall rules, and guides the user to set up a secure Private network profile.
+3. **NSIS Installer (`/installer`)**: An installer script that packs the server and dashboard executables, registers the server in the User Startup folder for autostart, creates Desktop/Start Menu shortcuts for the Dashboard, prompts for firewall rules, and guides the user.
 
 ```
 ┌─────────────────┐       Local WiFi (HTTP)       ┌──────────────────┐
 │   Android App   ├──────────────────────────────>│    Go Backend    │
-│ (Flutter Client)│   PIN Auth & Bearer Token     │ (Windows Service)│
+│ (Flutter Client)│   PIN Auth & Bearer Token     │ (Background App) │
 └─────────────────┘                               └────────┬─────────┘
-                                                           │ Win32 API / COM
+                                                           │ Win32 API / COM / SMTC
                                                            ▼
                                                   ┌──────────────────┐
                                                   │    Windows OS    │
@@ -34,10 +34,10 @@ The project consists of three main components:
 
 - 🔐 **PIN Authentication**: Secure authorization using custom PINs (4-8 digits). Supports atomic `.env` configuration updates directly from the Android app without restarting the server.
 - 🔊 **Advanced Audio Control**: Retrieve and modify system master volume and mute state. Supports deep COM interfaces to query application sessions (including support for SteelSeries Sonar virtual channels).
-- 🎵 **Media Injection & Sync**: Simulate system-wide media keys (Play/Pause, Next, Previous) to control media players (Spotify, YouTube, VLC, etc.) remotely. Features real-time Windows Media Session synchronization (via WinRT GSMTC) to display active track titles, artist details, and playback state dynamically on the client dashboard.
+- 🎵 **Native Media Control & Sync**: Directly calls Windows System Media Transport Controls (SMTC) (Play/Pause, Next, Previous) to control media players (Spotify, YouTube, Chrome, VLC, etc.) remotely. Features real-time Windows Media Session synchronization (via WinRT GSMTC) to display active track titles, artist details, and playback state dynamically on the client dashboard.
 - 🌐 **Remote Browser Launch**: Open any URL instantly in Microsoft Edge or the system's default browser.
 - ⚡ **Power & Lifecycle Management**: Sleep, lock, restart, and shutdown commands. Includes cancellation endpoints to recover from accidental trigger commands.
-- 📦 **Seamless Windows Service**: Runs quietly in the background. The installer automatically manages service states (`nssm start/stop`) during upgrades.
+- 📦 **UAC-Safe Autostart**: Runs quietly in the background. The installer registers the application to the User Startup folder for automatic launch upon logging in, avoiding UAC privileges restrictions.
 - 📶 **Installer Private Network Wizard**: Guides the user to configure their WiFi profile as "Private", avoiding typical connection blocks caused by Windows Defender Firewall.
 
 ---
@@ -72,9 +72,9 @@ If you just want to use the application to control your PC, you do not need to c
 
 ### Step 1: Download the Files
 1. Go to the [Releases](https://github.com/KristianEki11/PC-Remote/releases) page of this repository.
-2. Under the latest version (e.g. `v2.2.0`), download two files:
+2. Under the latest version (e.g. `v2.2.7`), download two files:
    - **`PCRemoteSetup.exe`** (Installer for your Windows PC)
-   - **`app-release.apk`** (Application for your Android Phone)
+   - **`PCRemoteApp.apk`** (Application for your Android Phone)
 
 ### Step 2: Setup the Windows PC Server
 1. Double-click **`PCRemoteSetup.exe`** on your PC to launch the setup wizard (accept the Administrator prompt).
@@ -82,12 +82,12 @@ If you just want to use the application to control your PC, you do not need to c
    - Set a **PIN** (4-8 digits, e.g. `1234`). Write this down as you will need it to login from your phone.
    - Choose a port (default is `8000`).
 3. **Crucial (WiFi Network Profile)**: Once the installation is complete, a prompt will guide you to change your WiFi profile to **Private** (if not already set). This is required so Windows Defender Firewall allows your phone to connect to your PC.
-4. The installer automatically registers the server as a background service and starts it.
+4. The installer automatically registers the server in your User Startup folder and starts it in the background.
 
 ### Step 3: Install/Setup on Client Devices (Android & iPhone/iOS)
 
 * **Android Phone**:
-  1. Transfer **`app-release.apk`** to your Android phone (via USB, email, or Bluetooth).
+  1. Transfer **`PCRemoteApp.apk`** to your Android phone (via USB, email, or Bluetooth).
   2. Open the file on your phone to install it. 
      - *Note: If prompted, enable "Install from Unknown Sources" or allow your browser/file manager to install apps.*
 
@@ -97,11 +97,11 @@ If you just want to use the application to control your PC, you do not need to c
   3. Tap the **Share** button, then select **Add to Home Screen** to install it as a Progressive Web App (PWA).
 
 * **macOS / Mac Support**:
-  * ⚠️ **Note**: macOS/Mac is **NOT supported** as a host server. The PC Remote server backend runs exclusively on Windows (leveraging Win32 APIs and COM interfaces for system volume and process management).
+  * ⚠️ **Note**: macOS/Mac is **NOT supported** as a host server. The PC Remote server backend runs exclusively on Windows (leveraging Win32 APIs, COM, and SMTC interfaces).
 
 ### Step 4: Connect & Control
 1. Make sure both your **PC and Client Device (Phone/Tablet) are connected to the same WiFi network**.
-2. Find your PC's IP Address (the installer shows this at the final screen, or you can find it by opening Command Prompt on your PC and typing `ipconfig` under your wireless adapter's IPv4 address).
+2. Find your PC's IP Address (you can open the **PCRemote Dashboard** from your Desktop to see the current server configuration and test endpoints, or open Command Prompt on your PC and type `ipconfig`).
 3. Open the **PC Remote** app (or the web PWA) on your phone.
 4. Enter your PC's IP address (e.g. `192.168.1.100`)—no port is required as it automatically defaults to `8000`.
 5. Enter the **PIN** you configured in Step 2.
@@ -117,7 +117,7 @@ If you wish to modify the code or compile the project from scratch, follow these
 
 #### Prerequisites
 - Go 1.21 or newer (on Windows)
-- Cgo is not strictly required.
+- Cgo is not required.
 
 #### Development Run
 ```powershell
@@ -128,9 +128,13 @@ go run main.go
 ```
 
 #### Build
-To build a production-ready, windowless Windows executable:
+To build the production-ready, windowless Windows server and the management dashboard CLI:
 ```powershell
-go build -ldflags="-H windowsgui" -o dist/pcremote-server.exe main.go
+# Build background server
+go build -ldflags="-s -w -H windowsgui" -o dist/pcremote-server.exe main.go
+
+# Build interactive dashboard
+go build -o dist/PCRemoteDashboard.exe ./cmd/test_api/main.go
 ```
 
 ---
@@ -160,7 +164,6 @@ The output will be generated at `app/build/app/outputs/flutter-apk/app-release.a
 
 #### Prerequisites
 - [NSIS (Nullsoft Scriptable Install System)](https://nsis.sourceforge.io/) installed.
-- NSSM (Non-Sucking Service Manager) binary placed under `installer/tools/nssm.exe`.
 
 #### Compilation
 Compile `installer/PCRemoteSetup.nsi` using the NSIS Compiler interface or command line:
