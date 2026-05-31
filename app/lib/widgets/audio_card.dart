@@ -169,22 +169,18 @@ class _AudioCardState extends State<AudioCard> {
                     GestureDetector(
                       onTap: isLoadingMaster ? null : _toggleMasterMute,
                       child: Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: isMasterMuted
-                              ? Colors.red.withValues(alpha: 0.15)
-                              : AppColors.primary.withValues(alpha: 0.1),
-                          border: Border.all(
-                            color: isMasterMuted
-                                ? Colors.red.withValues(alpha: 0.3)
-                                : AppColors.primary.withValues(alpha: 0.2),
-                          ),
+                              ? AppColors.error.withValues(alpha: 0.15)
+                              : AppColors.surfaceLight,
+                          boxShadow: AppClays.button(),
                         ),
                         child: Icon(
                           isMasterMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                          color: isMasterMuted ? Colors.red : AppColors.primary,
-                          size: 26,
+                          color: isMasterMuted ? AppColors.error : AppColors.primary,
+                          size: 28,
                         ),
                       ),
                     ),
@@ -260,11 +256,11 @@ class _AudioCardState extends State<AudioCard> {
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12.0),
-                        padding: const EdgeInsets.all(12.0),
+                        padding: const EdgeInsets.all(14.0),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
+                          color: AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: AppClays.button(intensity: 0.5),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

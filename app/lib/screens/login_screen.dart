@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  String _versionText = 'v2.2.8';
+  String _versionText = 'v2.2.9';
 
   @override
   void initState() {
@@ -176,12 +176,12 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          // Subtle radial gradient background
+          // Minimal gradient background
           gradient: RadialGradient(
-            center: Alignment(0, -0.5),
-            radius: 1.2,
+            center: Alignment(0, -0.3),
+            radius: 1.0,
             colors: [
-              Color(0xFF1A2332), // Slightly lighter center
+              Color(0xFF252630), // Slightly lighter center
               AppColors.background,
             ],
           ),
@@ -203,39 +203,26 @@ class _LoginScreenState extends State<LoginScreen> {
               },
               child: SingleChildScrollView(
                 child: Container(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  padding: const EdgeInsets.all(24.0),
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  padding: const EdgeInsets.all(28.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // App icon with gradient glow background
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primary.withValues(alpha: 0.2),
-                            AppColors.gradientEnd.withValues(alpha: 0.1),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                    children: [
+                      // App icon with claymorphic appearance
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.surfaceLight,
+                          boxShadow: AppClays.card(),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            blurRadius: 30,
-                            spreadRadius: 5,
-                          ),
-                        ],
+                        child: const Icon(
+                          Icons.computer_rounded,
+                          size: 48,
+                          color: AppColors.primary,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.computer_rounded,
-                        size: 48,
-                        color: AppColors.primary,
-                      ),
-                    ),
                     const SizedBox(height: 24),
                     const Text(
                       'PC Remote',
@@ -305,28 +292,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
-                    // Connect Button with gradient
+                    // Connect Button with claymorphic design
                     SizedBox(
                       width: double.infinity,
-                      height: 52,
+                      height: 56,
                       child: Container(
                         decoration: BoxDecoration(
-                          gradient: _isLoading ? null : AppGradients.accent,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: _isLoading ? [] : [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          gradient: _isLoading ? null : AppGradients.primaryButton,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: _isLoading ? [] : AppClays.button(),
                         ),
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
                           child: _isLoading
                               ? const SizedBox(

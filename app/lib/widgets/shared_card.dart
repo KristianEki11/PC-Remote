@@ -1,48 +1,31 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 
-/// Shared card container with glassmorphic blur, gradient border, and elevated shadow.
+/// Shared card container with claymorphic design - soft raised appearance.
+/// No BackdropFilter for optimal performance.
 class SharedCard extends StatelessWidget {
   final Widget child;
+  final double borderRadius;
+  final EdgeInsets? padding;
 
-  const SharedCard({super.key, required this.child});
+  const SharedCard({
+    super.key,
+    required this.child,
+    this.borderRadius = 20,
+    this.padding,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: AppGradients.cardBorder,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(borderRadius),
+        boxShadow: AppClays.card(),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(13),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            margin: const EdgeInsets.all(1), // 1px gradient border
-            decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: 0.75),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18.0),
-              child: child,
-            ),
-          ),
-        ),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(20.0),
+        child: child,
       ),
     );
   }
@@ -53,32 +36,35 @@ class CardHeader extends StatelessWidget {
   final IconData icon;
   final String title;
   final Widget? trailing;
+  final Color? iconColor;
 
   const CardHeader({
     super.key,
     required this.icon,
     required this.title,
     this.trailing,
+    this.iconColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Icon with subtle gradient-like glow
+        // Claymorphic icon container
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: AppClays.iconContainer(),
           ),
           child: Icon(
             icon,
-            color: AppColors.primary,
+            color: iconColor ?? AppColors.primary,
             size: 20,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Text(
           title,
           style: const TextStyle(
@@ -101,10 +87,21 @@ class CardLoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 16,
-      height: 16,
-      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: AppClays.iconContainer(intensity: 0.5),
+      ),
+      child: const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.primary,
+        ),
+      ),
     );
   }
 }

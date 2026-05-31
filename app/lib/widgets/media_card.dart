@@ -87,14 +87,14 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
               trailing: isLoading ? const CardLoadingIndicator() : null,
             ),
           const SizedBox(height: 24),
-          // Cover art with breathing animation & glow
+          // Cover art with breathing animation & claymorphic glow
           ScaleTransition(
             scale: _breathingAnimation,
             child: Container(
               width: 130,
               height: 130,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(28),
                 gradient: const LinearGradient(
                   colors: [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)],
                   begin: Alignment.topLeft,
@@ -102,10 +102,14 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFE94057).withValues(alpha: 0.35),
-                    blurRadius: 20,
-                    spreadRadius: 2,
+                    color: const Color(0xFFE94057).withValues(alpha: 0.25),
                     offset: const Offset(0, 8),
+                    blurRadius: 20,
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF8A2387).withValues(alpha: 0.15),
+                    offset: const Offset(-4, -4),
+                    blurRadius: 12,
                   ),
                 ],
               ),
@@ -188,23 +192,16 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
                 onPressed: isLoading ? null : () => _executeMediaAction('Previous Track', mediaState.prev),
               ),
               const SizedBox(width: 24),
-              // Play/Pause Center Button
+              // Play/Pause Center Button - claymorphic
               GestureDetector(
                 onTap: isLoading ? null : () => _executeMediaAction('Play/Pause', mediaState.playPause),
                 child: Container(
-                  width: 68,
-                  height: 68,
+                  width: 70,
+                  height: 70,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: AppGradients.accent,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.4),
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    gradient: AppGradients.primaryButton,
+                    boxShadow: AppClays.button(),
                   ),
                   child: Icon(
                     isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
@@ -238,8 +235,8 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.surfaceLight.withValues(alpha: 0.5),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: AppColors.surfaceLight,
+        boxShadow: AppClays.button(),
       ),
       child: IconButton(
         iconSize: iconSize,

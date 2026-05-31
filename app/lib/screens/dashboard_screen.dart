@@ -215,7 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     _buildInfoRow('IP Address', appState.ipAddress),
                     _buildInfoRow('Platform', 'Windows'),
                     _buildInfoRow('Status Koneksi', isConnected ? 'Online' : 'Offline', isStatus: true, statusVal: isConnected),
-                    _buildInfoRow('Versi Server', 'v2.2.8'),
+                    _buildInfoRow('Versi Server', 'v2.2.9'),
                     const SizedBox(height: 20),
                     // Action Buttons inside card
                     Row(
@@ -260,13 +260,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       appBar: AppBar(
         title: const Text('PC Remote'),
         actions: [
-          // Animated connection status badge
+          // Animated connection status badge - claymorphic
           Container(
             margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: (isConnected ? Colors.green : Colors.red).withValues(alpha: 0.15),
+              color: AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(20),
+              boxShadow: AppClays.iconContainer(),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -280,22 +281,22 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isConnected
-                            ? Colors.green.withValues(alpha: _pulseAnimation.value)
-                            : Colors.red,
+                            ? AppColors.success.withValues(alpha: _pulseAnimation.value)
+                            : AppColors.error,
                         boxShadow: isConnected
-                            ? [BoxShadow(color: Colors.green.withValues(alpha: 0.4), blurRadius: 6, spreadRadius: 1)]
+                            ? [BoxShadow(color: AppColors.success.withValues(alpha: 0.4), blurRadius: 6, spreadRadius: 1)]
                             : [],
                       ),
                     );
                   },
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
                   isConnected ? 'Online' : 'Offline',
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isConnected ? Colors.green : Colors.red,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isConnected ? AppColors.success : AppColors.error,
                   ),
                 ),
               ],
@@ -336,14 +337,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           ),
         ],
       ),
+      // Claymorphic bottom navigation bar
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: Colors.white.withValues(alpha: 0.05),
-              width: 1,
-            ),
-          ),
+          color: AppColors.surface,
+          boxShadow: AppClays.navBar(),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -353,10 +351,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               _currentIndex = index;
             });
           },
-          backgroundColor: AppColors.background,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          unselectedItemColor: AppColors.textMuted,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontSize: 11),
           type: BottomNavigationBarType.fixed,
           items: const [

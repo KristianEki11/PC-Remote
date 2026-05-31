@@ -129,19 +129,14 @@ class _BrowserCardState extends State<BrowserCard> {
 
               return InkWell(
                 onTap: () => _selectPreset(index),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
                   decoration: BoxDecoration(
                     color: isSelected
                         ? accentColor.withValues(alpha: 0.15)
-                        : AppColors.surfaceLight.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected
-                          ? accentColor.withValues(alpha: 0.5)
-                          : Colors.white.withValues(alpha: 0.05),
-                      width: 1.5,
-                    ),
+                        : AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: AppClays.button(intensity: isSelected ? 0.8 : 0.4),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -196,23 +191,15 @@ class _BrowserCardState extends State<BrowserCard> {
             },
           ),
           const SizedBox(height: 16),
-          // Launch Button
+          // Launch Button - claymorphic
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 52,
             child: Container(
               decoration: BoxDecoration(
-                gradient: _urlController.text.isEmpty || _isLoading ? null : AppGradients.accent,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: _urlController.text.isEmpty || _isLoading
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                gradient: _urlController.text.isEmpty || _isLoading ? null : AppGradients.primaryButton,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: _urlController.text.isEmpty || _isLoading ? [] : AppClays.button(),
               ),
               child: ElevatedButton(
                 onPressed: _urlController.text.isEmpty || _isLoading ? null : _openBrowser,
@@ -220,7 +207,7 @@ class _BrowserCardState extends State<BrowserCard> {
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: _isLoading
                     ? const SizedBox(
