@@ -29,6 +29,7 @@ type TestMockAPI struct {
 	SetDeviceVolumeFunc      func(id string, level float64) error
 	SetDeviceMuteFunc        func(id string, muted bool) error
 	SendMediaKeyFunc         func(action string) error
+	GetMediaStatusFunc       func() (map[string]any, error)
 	LockWorkstationFunc      func() error
 	OpenBrowserFunc          func(url string) error
 	ScheduleShutdownFunc     func(delaySeconds int) error
@@ -101,6 +102,17 @@ func (m *TestMockAPI) SendMediaKey(action string) error {
 		return m.SendMediaKeyFunc(action)
 	}
 	return nil
+}
+func (m *TestMockAPI) GetMediaStatus() (map[string]any, error) {
+	if m.GetMediaStatusFunc != nil {
+		return m.GetMediaStatusFunc()
+	}
+	return map[string]any{
+		"success": true,
+		"status":  "playing",
+		"title":   "Mock Title",
+		"artist":  "Mock Artist",
+	}, nil
 }
 func (m *TestMockAPI) LockWorkstation() error {
 	if m.LockWorkstationFunc != nil {

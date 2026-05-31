@@ -229,7 +229,7 @@ func handleChoice(choice int) {
 }
 
 func sendRequest(method string, endpoint string, usePin bool, payload any) {
-	fmt.Printf("\n%sMengirim request %s ke %s%s...%s\n", colorYellow, method, endpoint, colorReset)
+	fmt.Printf("\n%sMengirim request %s ke %s...%s\n", colorYellow, method, endpoint, colorReset)
 
 	var body io.Reader
 	if payload != nil {
