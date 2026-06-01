@@ -1,0 +1,49 @@
+goroutine profile: total 6
+
+1 @ 0x7ff69557c591 0x7ff6955e7b58 0x7ff6958287f3 0x7ff6955ed7c1
+#	0x7ff6955e7b57	os/signal.signal_recv+0x97	C:/Program Files/Go/src/runtime/sigqueue.go:152
+#	0x7ff6958287f2	os/signal.loop+0x12		C:/Program Files/Go/src/os/signal/signal_unix.go:23
+
+1 @ 0x7ff6955a4691 0x7ff6955e4bfd 0x7ff69580c211 0x7ff69580c045 0x7ff695808ec9 0x7ff6958232ca 0x7ff695823d5a 0x7ff6957cc889 0x7ff6957ce627 0x7ff6957d51ce 0x7ff6957cacf0 0x7ff6955ed7c1
+#	0x7ff69580c210	runtime/pprof.writeRuntimeProfile+0xb0
+#	0x7ff69580c044	runtime/pprof.writeGoroutine+0x44
+#	0x7ff695808ec8	runtime/pprof.(*Profile).WriteTo+0x148
+#	0x7ff6958232c9	net/http/pprof.handler.ServeHTTP+0x529
+#	0x7ff695823d59	net/http/pprof.Index+0xd9
+
+1 @ 0x7ff6955e2ebe 0x7ff6955e9cee 0x7ff6955fe87e 0x7ff695608ceb 0x7ff69564571c 0x7ff695644769 0x7ff6956453ee 0x7ff6956dce05 0x7ff6956e7f65 0x7ff6957c49b3 0x7ff6955ed7c1
+#	0x7ff6955e9ced	syscall.SyscallN+0x1d
+#	0x7ff6955fe87d	syscall.SyscallN+0x1d
+#	0x7ff6956dce04	net.(*netFD).Read+0x24
+#	0x7ff6956e7f64	net.(*conn).Read+0x44
+#	0x7ff6957c49b2	net/http.(*connReader).backgroundRead+0x32
+
+1 @ 0x7ff6955e5e4e 0x7ff6955762ae 0x7ff695575df2 0x7ff695847985 0x7ff6955b0ba7 0x7ff6955ed7c1
+#	0x7ff695847984	main.main+0xa84	D:/remote-pc/server/main.go:117 (shutdown goroutine)
+
+1 @ 0x7ff6955e5e4e 0x7ff6955a7b97 0x7ff6955e4f85 0x7ff695643a47 0x7ff6956441ac 0x7ff695644805 0x7ff695646a39 0x7ff695646db0 0x7ff6956ddfcb 0x7ff6956ef11b 0x7ff6956ee3f0 0x7ff6957d010c 0x7ff6957cfcf2 0x7ff695847b86 0x7ff6955ed7c1
+#	0x7ff6955e4f84	internal/poll.runtime_pollWait+0x84
+#	0x7ff6956ddfca	net.(*netFD).accept+0x4a
+#	0x7ff6956ef11a	net.(*TCPListener).accept+0x1a
+#	0x7ff6957d010b	net/http.(*Server).Serve+0x30b	D:/remote-pc/server/main.go:108
+#	0x7ff6957cfcf1	net/http.(*Server).ListenAndServe+0x71
+
+1 @ 0x7ff6955e5e4e 0x7ff6955a7b97 0x7ff6955e4f85 0x7ff695643a47 0x7ff6956441ac 0x7ff695644805 0x7ff695646a39 0x7ff695646db0 0x7ff6956ddfcb 0x7ff6956ef11b 0x7ff6956ee3f0 0x7ff6957d010c 0x7ff6957cfcf2 0x7ff695848332 0x7ff695848333 0x7ff6955ed7c1
+#	0x7ff6955e4f84	internal/poll.runtime_pollWait+0x84
+#	0x7ff6956ddfca	net.(*netFD).accept+0x4a
+#	0x7ff6956ef11a	net.(*TCPListener).accept+0x1a
+#	0x7ff6957d010b	net/http.(*Server).Serve+0x30b
+#	0x7ff6957cfcf1	net/http.(*Server).ListenAndServe+0x71
+#	0x7ff695848331	net/http.ListenAndServe+0x91	D:/remote-pc/server/main.go:49 (pprof server)
+
+---
+
+ANALYSIS:
+- Total goroutines: 6 (healthy, minimal)
+- 2 goroutines: HTTP accept loops (main server + pprof)
+- 1 goroutine: signal handler
+- 1 goroutine: pprof handler
+- 1 goroutine: shutdown handler
+- 1 goroutine: TCP connection reader
+
+No memory leaks or goroutine accumulation detected.

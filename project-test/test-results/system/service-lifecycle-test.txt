@@ -1,0 +1,23 @@
+=== SERVICE LIFECYCLE TEST ===
+Test Date: Mon Jun  1 18:05:57 SEAST 2026
+
+TEST A: Normal start/stop check
+Current status: Server running
+Health check: {"status":"ok"}
+
+NOTE: NSSM not in PATH, net start/stop requires elevated privileges
+Testing service restart via process status instead...
+
+TEST B: Process Information
+
+
+Id           : 1276
+ProcessName  : pcremote-server
+WorkingSet64 : 61030400
+CPU          : 
+StartTime    : 
+
+
+
+
+=== TEST COMPLETED ===

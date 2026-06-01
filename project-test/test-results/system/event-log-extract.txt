@@ -1,0 +1,12 @@
+# Event Log Extract - PCRemoteServer
+# Generated: 2026-06-01
+
+## Application Log
+No PCRemoteServer entries found in recent Application log.
+
+## System Log
+No NSSM entries found in recent System log.
+
+## Notes
+- PCRemoteServer may not be configured to write to Windows Event Log
+- The application uses Go's standard logging to files instead

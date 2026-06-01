@@ -1,0 +1,57 @@
+# Baseline Metrics (Idle State)
+
+**Generated:** 2026-06-01
+**Status:** NOT YET CAPTURED
+
+---
+
+## To Capture Baseline
+
+### 1. Memory (Idle)
+
+```powershell
+# Find server process
+Get-Process -Name "*pcremote*" | Select-Object Id, ProcessName, @{N='Memory_MB';E={[math]::Round($_.WorkingSet64/1MB,2)}}
+
+# Or using tasklist
+tasklist /fi "imagename eq pcremote-server.exe" /fo csv
+```
+
+### 2. CPU (Idle)
+
+```powershell
+# Check CPU usage
+Get-Process -Name "*pcremote*" | Select-Object Id, CPU, @{N='CPU_Pct';E={$_.CPU}}
+
+# Or with typeperf
+typeperf "\Process(pcremote*)\% Processor Time" -sc 5
+```
+
+### 3. Goroutines
+
+```powershell
+# Check pprof endpoint
+curl http://localhost:6060/debug/pprof/goroutine?debug=1 | Select-Object -First 10
+```
+
+---
+
+## Expected Baseline Values
+
+| Metric | Idle State |
+|--------|-----------|
+| Memory (MB) | ~15-25 MB |
+| Goroutines | ~10-15 |
+| CPU % (idle) | <1% |
+
+---
+
+## Measurement Process
+
+1. Start server, wait 30 seconds for warmup
+2. Capture metrics while server is idle
+3. Save to this file
+
+---
+
+*Run metrics collection to populate actual values*
