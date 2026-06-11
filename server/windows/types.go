@@ -31,6 +31,7 @@ type APIInterface interface {
 	CancelShutdown() error
 	Sleep() error
 	Restart() error
+	TurnOffDisplay() error
 	DebugListAllDevices() ([]string, error)
 }
 

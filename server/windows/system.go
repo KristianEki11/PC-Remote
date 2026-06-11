@@ -9,12 +9,15 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
+	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
 // ──────────────────────────────────────────────────────────
-// RealAPI — System control (lock, sleep, shutdown, restart)
+// RealAPI — System control (lock, sleep, shutdown, restart, display)
 // ──────────────────────────────────────────────────────────
 
 func (RealAPI) LockWorkstation() error {
@@ -148,6 +151,105 @@ Remove-Item $PSCommandPath -Force
 func (RealAPI) Restart() error {
 	cmd := exec.Command("shutdown", "/r", "/t", "5")
 	return cmd.Run()
+}
+
+var (
+	pSetThreadExecutionState = kernel32.NewProc("SetThreadExecutionState")
+	displayMutex             sync.Mutex
+	isMonitoring             bool
+)
+
+const (
+	ES_SYSTEM_REQUIRED = 0x00000001
+	ES_CONTINUOUS      = 0x80000000
+)
+
+func setKeepAwake(awake bool) {
+	if awake {
+		slog.Info("Setting keep awake execution state (ES_SYSTEM_REQUIRED)")
+		pSetThreadExecutionState.Call(uintptr(ES_CONTINUOUS | ES_SYSTEM_REQUIRED))
+	} else {
+		slog.Info("Clearing keep awake execution state")
+		pSetThreadExecutionState.Call(uintptr(ES_CONTINUOUS))
+	}
+}
+
+func monitorDisplayState() {
+	defer func() {
+		displayMutex.Lock()
+		isMonitoring = false
+		displayMutex.Unlock()
+	}()
+
+	// Wait 5 seconds to let the screen actually turn off and WMI update its state
+	time.Sleep(5 * time.Second)
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Check if screen has been turned back on by user
+		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+			"Get-CimInstance -Namespace root\\wmi -ClassName WmiMonitorBasicDisplayParams | Select-Object -ExpandProperty Active")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		out, err := cmd.Output()
+		if err != nil {
+			// If WMI query fails (e.g. system is temporarily unresponsive), keep polling
+			continue
+		}
+
+		status := strings.ToLower(string(out))
+		if strings.Contains(status, "true") {
+			slog.Info("Monitor has been turned back on by user. Releasing keep-awake state.")
+			setKeepAwake(false)
+			return
+		}
+	}
+}
+
+// TurnOffDisplay turns off the monitor without locking or sleeping the PC.
+// It uses the Win32 SendMessage(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, 2) API,
+// executed inside the active user session (via WTS) so the display actually turns off
+// even when the server runs as a Windows Service / SYSTEM account.
+// The PC remains fully awake — only the backlight is cut.
+func (RealAPI) TurnOffDisplay() error {
+	displayMutex.Lock()
+	defer displayMutex.Unlock()
+
+	psPath := `C:\Users\Public\display_off_temp.ps1`
+	// SC_MONITORPOWER = 0xF170, value 2 = power off
+	// We broadcast to HWND_BROADCAST (-1) which reaches the desktop window manager.
+	psContent := `$code = '[DllImport("user32.dll")] public static extern int SendMessage(int h, int m, int w, int l);'
+$type = Add-Type -MemberDefinition $code -Name WinUser -PassThru
+$type::SendMessage(-1, 0x0112, 0xF170, 2)
+Remove-Item $PSCommandPath -Force
+`
+	if err := os.WriteFile(psPath, []byte(psContent), 0666); err != nil {
+		return fmt.Errorf("failed to write display-off helper script: %w", err)
+	}
+
+	// Set system keep-awake state before turning off display
+	setKeepAwake(true)
+
+	// Use runInUserSessionStart to execute the script asynchronously so the API returns immediately
+	if runErr := runInUserSessionStart("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", psPath); runErr != nil {
+		slog.Error("Failed to run display-off helper in user session", "error", runErr)
+		setKeepAwake(false) // Clean up keep-awake on failure
+		if _, statErr := os.Stat(psPath); statErr == nil {
+			os.Remove(psPath)
+		}
+		return runErr
+	}
+
+	slog.Info("Display off triggered asynchronously")
+
+	// Start background monitoring if not already monitoring
+	if !isMonitoring {
+		isMonitoring = true
+		go monitorDisplayState()
+	}
+
+	return nil
 }
 
 // ──────────────────────────────────────────────────────────

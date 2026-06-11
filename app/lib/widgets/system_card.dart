@@ -245,6 +245,7 @@ class _SystemCardState extends State<SystemCard> {
             children: [
               _buildButton('Lock PC', Icons.lock_outline_rounded, Colors.blueAccent, () => _executeAction('Lock PC', ApiService.lockPc)),
               _buildButton('Sleep', Icons.bedtime_rounded, Colors.purpleAccent, () => _executeAction('Sleep', ApiService.sleepPc)),
+              _buildButton('Display Off', Icons.monitor_outlined, const Color(0xFF26C6DA), () => _executeAction('Display Off', ApiService.displayOff)),
               _buildButton('Restart', Icons.restart_alt_rounded, Colors.orangeAccent, () => _showConfirmationDialog('Restart', ApiService.restartPc)),
               _buildButton('Shutdown', Icons.power_settings_new_rounded, Colors.redAccent, () => _showShutdownDialog()),
             ],

@@ -310,8 +310,9 @@ class ApiService {
   // System
   // ──────────────────────────────────────
 
-  static Future<bool> lockPc()     => _post('/system/lock');
-  static Future<bool> sleepPc()    => _post('/system/sleep');
-  static Future<bool> restartPc()  => _post('/system/restart');
+  static Future<bool> lockPc()      => _post('/system/lock');
+  static Future<bool> sleepPc()     => _post('/system/sleep');
+  static Future<bool> restartPc()   => _post('/system/restart');
+  static Future<bool> displayOff()  => _post('/system/display/off');
   static Future<bool> shutdownPc({int delaySeconds = 0}) => _post('/system/shutdown', body: {'delay_seconds': delaySeconds});
 }

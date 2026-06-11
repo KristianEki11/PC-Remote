@@ -36,6 +36,7 @@ type TestMockAPI struct {
 	CancelShutdownFunc       func() error
 	SleepFunc                func() error
 	RestartFunc              func() error
+	TurnOffDisplayFunc       func() error
 	DebugListAllDevicesFunc  func() ([]string, error)
 }
 
@@ -147,6 +148,12 @@ func (m *TestMockAPI) Sleep() error {
 func (m *TestMockAPI) Restart() error {
 	if m.RestartFunc != nil {
 		return m.RestartFunc()
+	}
+	return nil
+}
+func (m *TestMockAPI) TurnOffDisplay() error {
+	if m.TurnOffDisplayFunc != nil {
+		return m.TurnOffDisplayFunc()
 	}
 	return nil
 }
@@ -631,3 +638,29 @@ func TestShutdownCancelHandler_WrongMethod(t *testing.T) {
 		t.Errorf("expected 405, got %d", rr.Code)
 	}
 }
+
+func TestSystemDisplayOffHandler_Valid(t *testing.T) {
+	called := false
+	defer injectMock(&TestMockAPI{
+		TurnOffDisplayFunc: func() error { called = true; return nil },
+	})()
+	req := httptest.NewRequest("POST", "/system/display/off", nil)
+	rr := httptest.NewRecorder()
+	SystemDisplayOffHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	if !called {
+		t.Error("expected TurnOffDisplay to be called")
+	}
+}
+
+func TestSystemDisplayOffHandler_WrongMethod(t *testing.T) {
+	req := httptest.NewRequest("GET", "/system/display/off", nil)
+	rr := httptest.NewRecorder()
+	SystemDisplayOffHandler(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("expected 405, got %d", rr.Code)
+	}
+}
+

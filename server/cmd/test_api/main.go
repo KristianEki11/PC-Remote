@@ -116,9 +116,10 @@ func printMenu() {
 	fmt.Println(" 10. Masuk Mode Standby/Sleep PC")
 	fmt.Println(" 11. Jadwalkan Shutdown PC")
 	fmt.Println(" 12. Batalkan Shutdown PC")
-	fmt.Println(" 13. Cek Status Saluran Audio (SteelSeries Sonar)")
-	fmt.Println(" 14. Set Volume Saluran Audio Sonar")
-	fmt.Println(" 15. Toggle Mute Saluran Audio Sonar")
+	fmt.Println(" 13. Matikan Layar PC (Display Off)")
+	fmt.Println(" 14. Cek Status Saluran Audio (SteelSeries Sonar)")
+	fmt.Println(" 15. Set Volume Saluran Audio Sonar")
+	fmt.Println(" 16. Toggle Mute Saluran Audio Sonar")
 	fmt.Println("  0. Keluar dari Dashboard")
 	fmt.Printf("%s============================================================%s\n", colorBlue, colorReset)
 }
@@ -202,8 +203,10 @@ func handleChoice(choice int) {
 	case 12:
 		sendRequest("POST", "/system/shutdown/cancel", true, nil)
 	case 13:
-		sendRequest("GET", "/audio/devices", true, nil)
+		sendRequest("POST", "/system/display/off", true, nil)
 	case 14:
+		sendRequest("GET", "/audio/devices", true, nil)
+	case 15:
 		fmt.Print("Masukkan ID/Nama Saluran Sonar (gaming, chat, media, mic): ")
 		ch, _ := reader.ReadString('\n')
 		ch = strings.TrimSpace(ch)
@@ -215,7 +218,7 @@ func handleChoice(choice int) {
 			return
 		}
 		sendRequest("POST", "/audio/device/volume", true, map[string]any{"device_id": ch, "level": vol})
-	case 15:
+	case 16:
 		fmt.Print("Masukkan ID/Nama Saluran Sonar (gaming, chat, media, mic): ")
 		ch, _ := reader.ReadString('\n')
 		ch = strings.TrimSpace(ch)
@@ -223,6 +226,7 @@ func handleChoice(choice int) {
 		muteStr, _ := reader.ReadString('\n')
 		muted := strings.ToLower(strings.TrimSpace(muteStr)) == "y"
 		sendRequest("POST", "/audio/device/mute", true, map[string]any{"device_id": ch, "mute": muted})
+
 	default:
 		fmt.Printf("%sPilihan menu tidak tersedia.%s\n", colorRed, colorReset)
 	}

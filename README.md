@@ -37,6 +37,7 @@ The project consists of three main components:
 - 🎵 **Native Media Control & Sync**: Directly calls Windows System Media Transport Controls (SMTC) (Play/Pause, Next, Previous) to control media players (Spotify, YouTube, Chrome, VLC, etc.) remotely. Features real-time Windows Media Session synchronization (via WinRT GSMTC) to display active track titles, artist details, and playback state dynamically on the client dashboard.
 - 🌐 **Remote Browser Launch**: Open any URL instantly in Microsoft Edge or the system's default browser.
 - ⚡ **Power & Lifecycle Management**: Sleep, lock, restart, and shutdown commands. Includes cancellation endpoints to recover from accidental trigger commands.
+- 🖥️ **Display Off**: Instantly turn off the monitor screen backlight using Win32 API broadcasts without sleeping or locking the system. Kept awake via thread execution state APIs until the user actively wakes the monitor back up.
 - 📦 **UAC-Safe Autostart**: Runs quietly in the background. The installer registers the application to the User Startup folder for automatic launch upon logging in, avoiding UAC privileges restrictions.
 - 📶 **Installer Private Network Wizard**: Guides the user to configure their WiFi profile as "Private", avoiding typical connection blocks caused by Windows Defender Firewall.
 
@@ -203,6 +204,7 @@ All protected endpoints require the header `Authorization: Bearer <session_token
 | `/system/sleep` | `POST` | Suspend the system to S3 Sleep. |
 | `/system/restart` | `POST` | Restart the system (5s timeout). |
 | `/system/shutdown` | `POST` | Shut down the system (5s timeout). |
+| `/system/display/off` | `POST` | Turn off the display backlight (monitor power down). |
 
 ---
 

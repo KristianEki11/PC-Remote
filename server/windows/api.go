@@ -329,4 +329,5 @@ func ScheduleShutdown(delaySeconds int) error                        { return AP
 func CancelShutdown() error                                          { return API.CancelShutdown() }
 func Sleep() error                                                   { return API.Sleep() }
 func Restart() error                                                 { return API.Restart() }
+func TurnOffDisplay() error                                          { return API.TurnOffDisplay() }
 func DebugListAllDevices() ([]string, error)                         { return API.DebugListAllDevices() }

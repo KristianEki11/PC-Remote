@@ -181,32 +181,43 @@ $manager = $task.Result
 $session = $manager.GetCurrentSession()
 $success = $false
 if ($session) {
-    # Try calling the SMTC method (async)
+    # Try calling the SMTC method (async) and wait for completion using AsTask
     $asyncOp = $session.%s()
-    $success = $true
+    $genericMethodBool = $asTaskMethod.MakeGenericMethod([bool])
+    $taskBool = $genericMethodBool.Invoke($null, @($asyncOp))
+    $taskBool.Wait()
+    if ($taskBool.Result) {
+        $success = $true
+    }
 }
 
 if (-not $success) {
-    # Fallback: Simulate a global media key press if no SMTC session is active.
+    # Fallback: Simulate a global media key press if no SMTC session is active or async op failed.
     # VK_MEDIA_NEXT_TRACK = 0xB0, VK_MEDIA_PREV_TRACK = 0xB1, VK_MEDIA_PLAY_PAUSE = 0xB3
     $signature = @'
     [DllImport("user32.dll")]
     public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, uint dwExtraInfo);
 '@
     $type = Add-Type -MemberDefinition $signature -Name "Keyboard" -Namespace "Win32" -PassThru
-    $type::keybd_event(%d, 0, 0, 0) # Key Down
-    $type::keybd_event(%d, 0, 2, 0) # Key Up
+    $type::keybd_event(%d, 0, 1, 0) # Key Down (1 = KEYEVENTF_EXTENDEDKEY)
+    $type::keybd_event(%d, 0, 3, 0) # Key Up (3 = KEYEVENTF_KEYUP | KEYEVENTF_EXTENDEDKEY)
 }
 `, method, vkCode, vkCode)
 
-	appDir := getAppDir()
-	scriptFile := filepath.Join(appDir, "send_media_temp.ps1")
+	tempDir := getWritableTempDir()
+	timestamp := time.Now().UnixNano()
+	scriptFile := filepath.Join(tempDir, fmt.Sprintf("send_media_temp_%d.ps1", timestamp))
 	if err := os.WriteFile(scriptFile, []byte(script), 0644); err != nil {
 		return fmt.Errorf("failed to write media script: %v", err)
 	}
-	defer os.Remove(scriptFile)
 
-	_, err := runInUserSessionWithOutput(scriptFile, filepath.Join(appDir, "send_media_out.txt"))
+	// Clean up script file after 3 seconds to allow background processes to finish reading it
+	go func(sf string) {
+		time.Sleep(3 * time.Second)
+		os.Remove(sf)
+	}(scriptFile)
+
+	err := runInUserSession("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", scriptFile)
 	if err != nil {
 		slog.Warn("SMTC script execution", "error", err)
 	}
@@ -283,11 +294,52 @@ var (
 	mediaCacheTime time.Time
 )
 
-// getAppDir returns the directory of the running server executable, converting "C:\Program Files" to "C:\PROGRA~1" to avoid spaces.
+// getAppDir returns the directory of the running server executable.
 func getAppDir() string {
 	if serverExe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(serverExe)
-		return strings.ReplaceAll(dir, "C:\\Program Files", "C:\\PROGRA~1")
+		return getShortPath(dir)
+	}
+	return "."
+}
+
+// getShortPath converts a path to its Windows 8.3 short path representation to resolve spaces.
+func getShortPath(path string) string {
+	utf16Path, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return path
+	}
+	buf := make([]uint16, 260)
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	pGetShortPathName := kernel32.NewProc("GetShortPathNameW")
+	ret, _, _ := pGetShortPathName.Call(
+		uintptr(unsafe.Pointer(utf16Path)),
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(len(buf)),
+	)
+	if ret == 0 || ret > uintptr(len(buf)) {
+		return path
+	}
+	return syscall.UTF16ToString(buf[:ret])
+}
+
+// getWritableTempDir returns a directory where temporary files can be written.
+// It tries the app directory first, falling back to LOCALAPPDATA\PCRemote\temp.
+func getWritableTempDir() string {
+	appDir := getAppDir()
+	// Test if appDir is writable
+	testFile := filepath.Join(appDir, "write_test.tmp")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
+		os.Remove(testFile)
+		return appDir
+	}
+	// Fallback to LOCALAPPDATA\PCRemote\temp
+	localAppData := os.Getenv("LOCALAPPDATA")
+	if localAppData != "" {
+		dir := filepath.Join(localAppData, "PCRemote", "temp")
+		if err := os.MkdirAll(dir, 0755); err == nil {
+			return getShortPath(dir)
+		}
 	}
 	return "."
 }
@@ -369,9 +421,10 @@ func (RealAPI) GetMediaStatus() (map[string]any, error) {
 		return mediaCacheVal, nil
 	}
 
-	appDir := getAppDir()
-	scriptFile := filepath.Join(appDir, "get_media_status_temp.ps1")
-	outputFile := filepath.Join(appDir, "media_status_temp.json")
+	tempDir := getWritableTempDir()
+	timestamp := time.Now().UnixNano()
+	scriptFile := filepath.Join(tempDir, fmt.Sprintf("get_media_status_temp_%d.ps1", timestamp))
+	outputFile := filepath.Join(tempDir, fmt.Sprintf("media_status_temp_%d.json", timestamp))
 
 	// Determine if running in interactive session
 	var sessionID uint32
@@ -390,6 +443,8 @@ func (RealAPI) GetMediaStatus() (map[string]any, error) {
 	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write temp script file: %w", err)
 	}
+	
+	// Clean up script file after execution
 	defer os.Remove(scriptFile)
 
 	outStr, err := runInUserSessionWithOutput(scriptFile, outputFile)

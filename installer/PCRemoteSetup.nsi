@@ -3,7 +3,7 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
-Name "PC Remote Controller v2.2.9"
+Name "PC Remote Controller v2.2.10"
 OutFile "PCRemoteSetup.exe"
 InstallDir "$PROGRAMFILES64\PCRemote"
 RequestExecutionLevel admin
@@ -94,6 +94,9 @@ Section "MainSection" SEC01
     FileWrite $0 "APP_PIN=$PIN$\r$\n"
     FileWrite $0 "PORT=8000$\r$\n"
     FileClose $0
+
+    ; Grant Users write/modify permissions on the installation directory
+    nsExec::ExecToLog 'icacls "$INSTDIR" /grant "*S-1-5-32-545:(OI)(CI)(M)" /t'
 
     ; Remove old registry startup if exists from v2.2.5
     DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer"

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -19,15 +20,30 @@ import (
 // corsMiddleware has been moved to middleware/cors.go
 
 func main() {
+	// 0. Ensure working directory is the executable's directory.
+	// This fixes startup issues when running from Windows Startup folder or Task Scheduler.
+	if exePath, err := os.Executable(); err == nil {
+		os.Chdir(filepath.Dir(exePath))
+	}
+
 	// 1. Load config
 	config.Init()
 
 	// 2. Setup structured logging
+	logPath := filepath.Join("logs", "server.log")
 	if err := os.MkdirAll("logs", 0755); err != nil {
-		log.Fatalf("Failed to create logs directory: %v", err)
+		logPath = getFallbackLogPath()
+	} else {
+		// Test write access to the local logs directory
+		testFile := filepath.Join("logs", "write_test.tmp")
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			logPath = getFallbackLogPath()
+		} else {
+			os.Remove(testFile)
+		}
 	}
 
-	logFile, err := os.OpenFile("logs/server.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("Failed to open log file: %v", err)
 	}
@@ -71,6 +87,7 @@ func main() {
 	protectedMux.HandleFunc("/system/shutdown/cancel", handlers.SystemShutdownCancelHandler)
 	protectedMux.HandleFunc("/system/sleep", handlers.SystemSleepHandler)
 	protectedMux.HandleFunc("/system/restart", handlers.SystemRestartHandler)
+	protectedMux.HandleFunc("/system/display/off", handlers.SystemDisplayOffHandler)
 	protectedMux.HandleFunc("/system/pin", handlers.HandleChangePIN)
 
 	// 3c. Apply auth middleware ONLY to the protected endpoints
@@ -118,3 +135,15 @@ func main() {
 
 	slog.Info("Server exiting")
 }
+
+func getFallbackLogPath() string {
+	localAppData := os.Getenv("LOCALAPPDATA")
+	if localAppData != "" {
+		dir := filepath.Join(localAppData, "PCRemote", "logs")
+		if err := os.MkdirAll(dir, 0755); err == nil {
+			return filepath.Join(dir, "server.log")
+		}
+	}
+	return "server.log"
+}
+

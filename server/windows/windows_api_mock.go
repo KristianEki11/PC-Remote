@@ -92,6 +92,11 @@ func (MockAPI) Restart() error {
 	return nil
 }
 
+func (MockAPI) TurnOffDisplay() error {
+	log.Println("MOCK: TurnOffDisplay called")
+	return nil
+}
+
 func (MockAPI) DebugListAllDevices() ([]string, error) {
 	log.Println("MOCK: DebugListAllDevices called")
 	return []string{"[MOCK] Speakers"}, nil
@@ -118,4 +123,5 @@ func init() {
 		func CancelShutdown() error { return API.CancelShutdown() }
 		func Sleep() error { return API.Sleep() }
 		func Restart() error { return API.Restart() }
+		func TurnOffDisplay() error { return API.TurnOffDisplay() }
 		func DebugListAllDevices() ([]string, error) { return API.DebugListAllDevices() }

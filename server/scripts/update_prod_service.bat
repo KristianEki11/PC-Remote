@@ -14,13 +14,13 @@ echo [2/4] Mengompilasi program Go terbaru...
 cd /d "%~dp0.."
 go build -o "%BIN_NAME%"
 if errorlevel 1 goto :compile_err
-go build -ldflags "-H=windowsgui" -o sendkey.exe cmd\sendkey\main.go
+go build -o PCRemoteDashboard.exe cmd\test_api\main.go
 if errorlevel 1 goto :compile_err
 
 echo [3/4] Menyalin binary baru ke %PROD_DIR%...
 copy /Y "%BIN_NAME%" "%PROD_DIR%\%BIN_NAME%"
 if errorlevel 1 goto :copy_err
-copy /Y sendkey.exe "%PROD_DIR%\sendkey.exe"
+copy /Y PCRemoteDashboard.exe "%PROD_DIR%\PCRemoteDashboard.exe"
 if errorlevel 1 goto :copy_err
 
 echo [4/4] Memulai kembali service PCRemoteServer...

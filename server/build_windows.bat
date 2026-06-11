@@ -4,10 +4,10 @@ set GOARCH=amd64
 set GOOS=windows
 set CGO_ENABLED=0
 
-echo [1/2] Building sendkey.exe...
-go build -ldflags="-s -w -H windowsgui" -o dist/sendkey.exe ./cmd/sendkey/
+echo [1/2] Building PCRemoteDashboard.exe...
+go build -ldflags="-s -w" -o dist/PCRemoteDashboard.exe ./cmd/test_api/
 if %ERRORLEVEL% NEQ 0 (
-    echo FAILED: sendkey.exe build failed
+    echo FAILED: PCRemoteDashboard.exe build failed
     pause
     exit /b 1
 )
@@ -22,6 +22,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo Build complete:
-echo   dist/sendkey.exe
+echo   dist/PCRemoteDashboard.exe
 echo   dist/pcremote-server.exe
 pause
+

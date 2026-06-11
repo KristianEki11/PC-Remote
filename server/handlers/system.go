@@ -264,3 +264,22 @@ func SystemRestartHandler(w http.ResponseWriter, r *http.Request) {
 
 	sendJSON(w, http.StatusOK, map[string]any{"success": true})
 }
+
+// SystemDisplayOffHandler handles POST /system/display/off
+// Turns off the monitor without locking the PC or putting it to sleep.
+// The system stays fully awake — only the display backlight is cut.
+// This mirrors the physical "display off" button found on some Acer / OEM laptops.
+func SystemDisplayOffHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendJSON(w, http.StatusMethodNotAllowed, ErrorBody{Error: "method not allowed"})
+		return
+	}
+
+	if err := winapi.TurnOffDisplay(); err != nil {
+		slog.Error("TurnOffDisplay failed", "error", err)
+		sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: err.Error()})
+		return
+	}
+
+	sendJSON(w, http.StatusOK, map[string]any{"success": true})
+}
