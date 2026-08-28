@@ -153,8 +153,6 @@ func main() {
 	protectedMux.HandleFunc("/system/display/off", handlers.SystemDisplayOffHandler)
 	protectedMux.HandleFunc("/system/pin", handlers.HandleChangePIN)
 
-	protectedMux.HandleFunc("/auth/logout", authH.LogoutHandler)
-
 	// Apply auth middleware to protected endpoints
 	authMiddleware := middleware.WithAuth(sessions, authLimiter)
 	mux.Handle("/", authMiddleware(protectedMux))
