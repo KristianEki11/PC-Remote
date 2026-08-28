@@ -212,22 +212,22 @@ func main() {
 		}
 	}()
 
-	// 16. Run system tray
-	// If tray runs on desktop, user can quit via tray menu.
-	// If tray cannot initialize (e.g. headless/service), server continues running.
-	trayApp.Run(
-		nil,
-		func() {
-			slog.Info("System tray requested exit")
-			select {
-			case <-shutdownCh:
-			default:
-				close(shutdownCh)
-			}
-		},
-	)
+	// 16. Run system tray in goroutine (or main thread)
+	go func() {
+		trayApp.Run(
+			nil,
+			func() {
+				slog.Info("System tray requested exit")
+				select {
+				case <-shutdownCh:
+				default:
+					close(shutdownCh)
+				}
+			},
+		)
+	}()
 
-	// Wait for explicit shutdown signal
+	// Wait indefinitely for explicit shutdown signal (Ctrl+C, taskkill, or Tray Quit)
 	<-shutdownCh
 	slog.Info("Shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
