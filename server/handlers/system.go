@@ -126,6 +126,7 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmedLine := strings.TrimSpace(line)
+		trimmedLine = strings.TrimPrefix(trimmedLine, "\ufeff")
 
 		var pinKeyName string
 		if strings.HasPrefix(trimmedLine, "PIN=") {

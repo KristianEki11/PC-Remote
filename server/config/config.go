@@ -102,6 +102,7 @@ func loadLiteralEnv(path string) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
+		line = strings.TrimPrefix(line, "\ufeff") // Strip UTF-8 BOM if present from Windows tools
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -110,6 +111,7 @@ func loadLiteralEnv(path string) {
 			continue
 		}
 		key := strings.TrimSpace(parts[0])
+		key = strings.TrimPrefix(key, "\ufeff")
 		val := strings.TrimSpace(parts[1])
 		val = strings.Trim(val, "'\"")
 
@@ -184,6 +186,7 @@ func autoHashPINInEnv(hash string) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
+		trimmed = strings.TrimPrefix(trimmed, "\ufeff")
 
 		var pinKeyName string
 		if strings.HasPrefix(trimmed, "PIN=") {
