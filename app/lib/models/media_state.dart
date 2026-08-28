@@ -88,6 +88,18 @@ class MediaState extends ChangeNotifier {
     return success;
   }
 
+  /// Seek forward (+10s in YouTube / video)
+  Future<bool> seekForward() async {
+    final success = await ApiService.mediaSeekForward();
+    return success;
+  }
+
+  /// Seek backward (-10s in YouTube / video)
+  Future<bool> seekBackward() async {
+    final success = await ApiService.mediaSeekBackward();
+    return success;
+  }
+
   @override
   void dispose() {
     stopPolling();

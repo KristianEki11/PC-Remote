@@ -534,9 +534,11 @@ class ApiService {
   // Media
   // ──────────────────────────────────────
 
-  static Future<bool> mediaPlayPause() => _post('/media/play');
-  static Future<bool> mediaNext()      => _post('/media/next');
-  static Future<bool> mediaPrev()      => _post('/media/prev');
+  static Future<bool> mediaPlayPause()    => _post('/media/play');
+  static Future<bool> mediaNext()         => _post('/media/next');
+  static Future<bool> mediaPrev()         => _post('/media/prev');
+  static Future<bool> mediaSeekForward()  => _post('/media/seek-forward');
+  static Future<bool> mediaSeekBackward() => _post('/media/seek-backward');
   static Future<Map<String, dynamic>?> getMediaStatus() =>
       _get('/media/status', timeout: const Duration(seconds: 5), showSnackBar: false);
 

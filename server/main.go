@@ -145,6 +145,8 @@ func main() {
 	protectedMux.HandleFunc("/media/play", handlers.MediaPlayHandler)
 	protectedMux.HandleFunc("/media/next", handlers.MediaNextHandler)
 	protectedMux.HandleFunc("/media/prev", handlers.MediaPrevHandler)
+	protectedMux.HandleFunc("/media/seek-forward", handlers.MediaSeekForwardHandler)
+	protectedMux.HandleFunc("/media/seek-backward", handlers.MediaSeekBackwardHandler)
 	protectedMux.HandleFunc("/media/status", handlers.MediaStatusHandler)
 
 	protectedMux.HandleFunc("/system/lock", handlers.SystemLockHandler)

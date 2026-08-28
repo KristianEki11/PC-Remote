@@ -62,6 +62,38 @@ func MediaPrevHandler(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
+// MediaSeekForwardHandler handles POST /media/seek-forward
+func MediaSeekForwardHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendJSON(w, http.StatusMethodNotAllowed, ErrorBody{Error: "method not allowed"})
+		return
+	}
+
+	if err := winapi.SendMediaKey("seek_forward"); err != nil {
+		slog.Error("SendMediaKey seek_forward failed", "error", err)
+		sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: err.Error()})
+		return
+	}
+
+	sendJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+// MediaSeekBackwardHandler handles POST /media/seek-backward
+func MediaSeekBackwardHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		sendJSON(w, http.StatusMethodNotAllowed, ErrorBody{Error: "method not allowed"})
+		return
+	}
+
+	if err := winapi.SendMediaKey("seek_backward"); err != nil {
+		slog.Error("SendMediaKey seek_backward failed", "error", err)
+		sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: err.Error()})
+		return
+	}
+
+	sendJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
 // MediaStatusHandler handles GET /media/status
 // Retrieves the real-time playback status and metadata of active media sessions.
 func MediaStatusHandler(w http.ResponseWriter, r *http.Request) {

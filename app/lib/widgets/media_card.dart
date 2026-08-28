@@ -180,24 +180,30 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 20),
-          // Player Controls
+          // Player Controls (5 buttons: Prev, -10s, Play/Pause, +10s, Next)
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Prev Button
+              // Prev Button (Track / Video)
               _buildControlButton(
                 icon: Icons.skip_previous_rounded,
-                iconSize: 32,
+                iconSize: 26,
                 color: AppColors.textPrimary.withValues(alpha: 0.8),
                 onPressed: isLoading ? null : () => _executeMediaAction('Previous Track', mediaState.prev),
               ),
-              const SizedBox(width: 24),
+              // Seek -10s Button
+              _buildControlButton(
+                icon: Icons.replay_10_rounded,
+                iconSize: 24,
+                color: AppColors.textPrimary.withValues(alpha: 0.8),
+                onPressed: isLoading ? null : () => _executeMediaAction('Mundur 10 Detik', mediaState.seekBackward),
+              ),
               // Play/Pause Center Button - claymorphic
               GestureDetector(
                 onTap: isLoading ? null : () => _executeMediaAction('Play/Pause', mediaState.playPause),
                 child: Container(
-                  width: 70,
-                  height: 70,
+                  width: 66,
+                  height: 66,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: AppGradients.primaryButton,
@@ -205,16 +211,22 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
                   ),
                   child: Icon(
                     isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    size: 38,
+                    size: 36,
                     color: Colors.white,
                   ),
                 ),
               ),
-              const SizedBox(width: 24),
-              // Next Button
+              // Seek +10s Button
+              _buildControlButton(
+                icon: Icons.forward_10_rounded,
+                iconSize: 24,
+                color: AppColors.textPrimary.withValues(alpha: 0.8),
+                onPressed: isLoading ? null : () => _executeMediaAction('Maju 10 Detik', mediaState.seekForward),
+              ),
+              // Next Button (Track / Video)
               _buildControlButton(
                 icon: Icons.skip_next_rounded,
-                iconSize: 32,
+                iconSize: 26,
                 color: AppColors.textPrimary.withValues(alpha: 0.8),
                 onPressed: isLoading ? null : () => _executeMediaAction('Next Track', mediaState.next),
               ),
