@@ -92,7 +92,7 @@ Section "MainSection" SEC01
 
     ; Write .env file
     FileOpen $0 "$INSTDIR\.env" w
-    FileWrite $0 "APP_PIN=$PIN$\r$\n"
+    FileWrite $0 "APP_PIN='$PIN'$\r$\n"
     FileWrite $0 "PORT=8000$\r$\n"
     FileClose $0
 

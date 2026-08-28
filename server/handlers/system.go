@@ -135,7 +135,7 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if pinKeyName != "" {
-			newContent.WriteString(pinKeyName + "=" + newHash + "\n")
+			newContent.WriteString(pinKeyName + "='" + newHash + "'\n")
 			keyFound = true
 		} else {
 			newContent.WriteString(line + "\n")
@@ -150,7 +150,7 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !keyFound {
-		newContent.WriteString("APP_PIN=" + newHash + "\n")
+		newContent.WriteString("APP_PIN='" + newHash + "'\n")
 	}
 
 	// Write to temporary file in the same directory as .env

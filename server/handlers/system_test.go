@@ -56,7 +56,7 @@ func TestChangePIN_Success(t *testing.T) {
 	envContent := string(envBytes)
 	
 	// Check that it contains PIN= and doesn't contain plaintext 5678
-	if !strings.Contains(envContent, "PIN=$2a$") && !strings.Contains(envContent, "PIN=$2b$") {
+	if !strings.Contains(envContent, "$2a$") && !strings.Contains(envContent, "$2b$") {
 		t.Errorf("expected .env to contain bcrypt hash, got: %q", envContent)
 	}
 	if !strings.Contains(envContent, "PORT=8000") {

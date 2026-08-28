@@ -26,19 +26,29 @@ var App Config
 // Init loads configuration from .env files and environment variables.
 // If a plaintext PIN is detected, it is automatically hashed with bcrypt
 // and the .env file is updated in-place.
+// Init loads configuration from .env files and environment variables.
+// If a plaintext PIN is detected, it is automatically hashed with bcrypt
+// and the .env file is updated in-place.
 func Init() {
-	// Load .env relative to the executable's directory so the service
-	// finds it regardless of what working directory NSSM sets.
+	// 1. First load via godotenv for standard env vars
 	exePath, err := os.Executable()
+	var envPath string
 	if err == nil {
-		envPath := filepath.Join(filepath.Dir(exePath), ".env")
+		envPath = filepath.Join(filepath.Dir(exePath), ".env")
 		_ = godotenv.Load(envPath)
 	}
-	// Fallback: also try loading from current working directory
 	_ = godotenv.Load()
 
+	// 2. Direct literal parser to prevent godotenv $ variable expansion from corrupting $2a$ bcrypt hashes
+	if envPath != "" {
+		loadLiteralEnv(envPath)
+	}
+	loadLiteralEnv(".env")
+
 	// ── Port ─────────────────────────────────────────────
-	App.Port = os.Getenv("PORT")
+	if App.Port == "" {
+		App.Port = os.Getenv("PORT")
+	}
 	if App.Port == "" {
 		App.Port = os.Getenv("APP_PORT")
 	}
@@ -47,16 +57,18 @@ func Init() {
 	}
 
 	// ── PIN ──────────────────────────────────────────────
-	rawPIN := os.Getenv("PIN")
-	if rawPIN == "" {
-		rawPIN = os.Getenv("APP_PIN")
+	if App.PIN == "" {
+		rawPIN := os.Getenv("PIN")
+		if rawPIN == "" {
+			rawPIN = os.Getenv("APP_PIN")
+		}
+		App.PIN = strings.Trim(rawPIN, "'\"")
 	}
-	App.PIN = rawPIN
 
 	// Auto-migrate: if PIN is plaintext (not a bcrypt hash), hash it now
 	// and rewrite the .env file so the plaintext is never stored at rest.
-	if rawPIN != "" && !isBcryptHash(rawPIN) {
-		hash, hashErr := bcrypt.GenerateFromPassword([]byte(rawPIN), bcrypt.DefaultCost)
+	if App.PIN != "" && !isBcryptHash(App.PIN) {
+		hash, hashErr := bcrypt.GenerateFromPassword([]byte(App.PIN), bcrypt.DefaultCost)
 		if hashErr == nil {
 			App.PIN = string(hash)
 			slog.Info("PIN auto-migrated to bcrypt hash")
@@ -67,13 +79,52 @@ func Init() {
 	}
 
 	// ── TLS Certificate Directory ────────────────────────
-	App.TLSCertDir = os.Getenv("TLS_CERT_DIR")
+	if App.TLSCertDir == "" {
+		App.TLSCertDir = os.Getenv("TLS_CERT_DIR")
+	}
 	if App.TLSCertDir == "" {
 		localAppData := os.Getenv("LOCALAPPDATA")
 		if localAppData != "" {
 			App.TLSCertDir = filepath.Join(localAppData, "PCRemote", "tls")
 		} else {
 			App.TLSCertDir = "tls"
+		}
+	}
+}
+
+func loadLiteralEnv(path string) {
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		val = strings.Trim(val, "'\"")
+
+		if key == "PIN" || key == "APP_PIN" {
+			if val != "" {
+				App.PIN = val
+			}
+		} else if key == "PORT" || key == "APP_PORT" {
+			if val != "" {
+				App.Port = val
+			}
+		} else if key == "TLS_CERT_DIR" {
+			if val != "" {
+				App.TLSCertDir = val
+			}
 		}
 	}
 }
@@ -142,7 +193,7 @@ func autoHashPINInEnv(hash string) {
 		}
 
 		if pinKeyName != "" {
-			newContent.WriteString(pinKeyName + "=" + hash + "\n")
+			newContent.WriteString(pinKeyName + "='" + hash + "'\n")
 			keyFound = true
 		} else {
 			newContent.WriteString(line + "\n")
@@ -156,7 +207,7 @@ func autoHashPINInEnv(hash string) {
 	}
 
 	if !keyFound {
-		return // No PIN key found, nothing to migrate
+		newContent.WriteString("APP_PIN='" + hash + "'\n")
 	}
 
 	// Atomic write: temp file → rename
