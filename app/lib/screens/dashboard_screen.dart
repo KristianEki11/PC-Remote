@@ -173,12 +173,55 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'IP PC: ${appState.ipAddress}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          'IP PC: ${appState.ipAddress}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ApiService.isUsingPublicTunnel
+                                ? const Color(0xFFC2A56D).withValues(alpha: 0.2)
+                                : const Color(0xFF22C55E).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: ApiService.isUsingPublicTunnel
+                                  ? const Color(0xFFC2A56D)
+                                  : const Color(0xFF22C55E),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                ApiService.isUsingPublicTunnel ? Icons.public : Icons.wifi,
+                                size: 12,
+                                color: ApiService.isUsingPublicTunnel
+                                    ? const Color(0xFFC2A56D)
+                                    : const Color(0xFF22C55E),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                ApiService.isUsingPublicTunnel ? 'Internet (4G/WAN)' : 'WiFi Lokal',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: ApiService.isUsingPublicTunnel
+                                      ? const Color(0xFFC2A56D)
+                                      : const Color(0xFF22C55E),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

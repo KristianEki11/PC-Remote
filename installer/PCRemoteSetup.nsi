@@ -84,6 +84,7 @@ Section "MainSection" SEC01
     ; Install files
     File "..\server\dist\pcremote-server.exe"
     File "..\server\dist\PCRemoteDashboard.exe"
+    File "..\server\dist\cloudflared.exe"
     File "..\server\favicon.ico"
 
     ; Create logs directory

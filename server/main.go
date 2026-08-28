@@ -19,6 +19,7 @@ import (
 	"pcremote-server/middleware"
 	tlsutil "pcremote-server/tls"
 	"pcremote-server/tray"
+	"pcremote-server/tunnel"
 )
 
 func main() {
@@ -74,6 +75,13 @@ func main() {
 	}
 	pairing := auth.NewPairingManager(localIP, config.App.Port, fingerprint, hostname, alternateHosts)
 
+	// 5b. Initialize Cloudflare Tunnel for Anywhere / Public access
+	tunnelMgr := tunnel.New(config.App.Port, func(publicURL string) {
+		pairing.UpdatePublicURL(publicURL)
+	})
+	_ = tunnelMgr.Start()
+	defer tunnelMgr.Stop()
+
 	// 6. Initialize rate limiters
 	authLimiter := middleware.NewAuthRateLimiter() // 5 req/min for auth endpoints
 	generalLimiter := middleware.NewRateLimiter()  // 60 req/min for API endpoints
@@ -89,6 +97,7 @@ func main() {
 	qrPage := &tray.QRPageHandler{
 		Pairing:  pairing,
 		Sessions: sessions,
+		Tunnel:   tunnelMgr,
 	}
 
 	// 9. Setup router

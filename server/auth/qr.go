@@ -28,6 +28,7 @@ type QRPayload struct {
 	Fingerprint    string   `json:"fingerprint"`
 	ServerName     string   `json:"server_name"`
 	AlternateHosts []string `json:"alternate_hosts,omitempty"`
+	PublicURL      string   `json:"public_url,omitempty"`
 }
 
 // PairingManager handles one-time QR code pairing tokens.
@@ -42,6 +43,7 @@ type PairingManager struct {
 	fingerprint    string
 	serverName     string
 	alternateHosts []string
+	publicURL      string
 }
 
 // NewPairingManager creates a new pairing manager with server connection details.
@@ -53,6 +55,20 @@ func NewPairingManager(host, port, fingerprint, serverName string, alternateHost
 		serverName:     serverName,
 		alternateHosts: alternateHosts,
 	}
+}
+
+// UpdatePublicURL updates the public tunnel URL (e.g. from Cloudflare tunnel).
+func (pm *PairingManager) UpdatePublicURL(url string) {
+	pm.mu.Lock()
+	pm.publicURL = url
+	pm.mu.Unlock()
+}
+
+// GetPublicURL returns the current public tunnel URL.
+func (pm *PairingManager) GetPublicURL() string {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	return pm.publicURL
 }
 
 // UpdateHost updates the server host address (e.g., when network changes).
@@ -139,6 +155,7 @@ func (pm *PairingManager) GetQRPayload() (*QRPayload, error) {
 		Fingerprint:    pm.fingerprint,
 		ServerName:     pm.serverName,
 		AlternateHosts: pm.alternateHosts,
+		PublicURL:      pm.publicURL,
 	}
 
 	return payload, nil

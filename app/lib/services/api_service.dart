@@ -119,9 +119,25 @@ class ApiService {
     return '$scheme$host';
   }
 
-  static String get _baseUrl {
-    final ip = _prefs.getString('last_ip') ?? '192.168.1.1:8000';
-    return _formatUrl(ip);
+  static String get localIp => _prefs.getString('last_ip') ?? '192.168.1.1:8000';
+  static String get publicUrl => _prefs.getString('public_url') ?? '';
+  static bool _preferRemote = false;
+
+  /// Returns whether the app is currently connected via local LAN WiFi or Public Internet Tunnel.
+  static bool get isUsingPublicTunnel => _preferRemote && publicUrl.isNotEmpty;
+
+  static String get _activeBaseUrl {
+    if (_preferRemote && publicUrl.isNotEmpty) {
+      return publicUrl.endsWith('/') ? publicUrl.substring(0, publicUrl.length - 1) : publicUrl;
+    }
+    return _formatUrl(localIp);
+  }
+
+  static String get _fallbackBaseUrl {
+    if (!_preferRemote && publicUrl.isNotEmpty) {
+      return publicUrl.endsWith('/') ? publicUrl.substring(0, publicUrl.length - 1) : publicUrl;
+    }
+    return _formatUrl(localIp);
   }
 
   static String get authToken => _prefs.getString('auth_token') ?? '';
@@ -177,61 +193,102 @@ class ApiService {
   }
 
   // ──────────────────────────────────────
-  // Generic HTTP helpers (DRY)
+  // Generic HTTP helpers (Dual-Stack Auto-Failover)
   // ──────────────────────────────────────
 
   static const _timeout = Duration(seconds: 10);
 
-  /// Generic GET request. Returns decoded JSON body or null.
+  /// Generic GET request with automatic dual-stack LAN / Public Tunnel failover.
   static Future<Map<String, dynamic>?> _get(String path, {Duration? timeout, bool showSnackBar = true}) async {
-    try {
-      final url = _baseUrl;
-      final headers = _headers;
-      
-      // If endpoint is protected and token is empty, don't execute
-      if (path != '/health' && authToken.isEmpty) {
-        return null;
-      }
+    if (path != '/health' && authToken.isEmpty) return null;
 
+    final primaryUrl = _activeBaseUrl;
+    final fallbackUrl = _fallbackBaseUrl;
+    final headers = _headers;
+
+    // 1. Try primary route
+    try {
       final response = await _client.get(
-        Uri.parse('$url$path'),
+        Uri.parse('$primaryUrl$path'),
         headers: headers,
-      ).timeout(timeout ?? _timeout);
+      ).timeout(timeout ?? const Duration(milliseconds: 2500));
 
       _check401(response);
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
-      return null;
     } catch (e) {
-      _handleError(e, showSnackBar: showSnackBar);
-      return null;
+      debugPrint('Primary route failed ($primaryUrl$path): $e');
+      // 2. Failover to secondary route if available
+      if (fallbackUrl != primaryUrl && fallbackUrl.isNotEmpty) {
+        try {
+          debugPrint('Failing over to secondary route: $fallbackUrl$path');
+          final response = await _client.get(
+            Uri.parse('$fallbackUrl$path'),
+            headers: headers,
+          ).timeout(timeout ?? _timeout);
+
+          _check401(response);
+          if (response.statusCode == 200) {
+            _preferRemote = !_preferRemote;
+            return jsonDecode(response.body);
+          }
+        } catch (e2) {
+          _handleError(e2, showSnackBar: showSnackBar);
+          return null;
+        }
+      } else {
+        _handleError(e, showSnackBar: showSnackBar);
+      }
     }
+    return null;
   }
 
-  /// Generic POST request. Returns true if status 200.
+  /// Generic POST request with automatic dual-stack LAN / Public Tunnel failover.
   static Future<bool> _post(String path, {Map<String, dynamic>? body, bool showSnackBar = true}) async {
+    if (path != '/health' && authToken.isEmpty) return false;
+
+    final primaryUrl = _activeBaseUrl;
+    final fallbackUrl = _fallbackBaseUrl;
+    final headers = _headers;
+    final bodyJson = body != null ? jsonEncode(body) : null;
+
+    // 1. Try primary route
     try {
-      final url = _baseUrl;
-      final headers = _headers;
-
-      // If endpoint is protected and token is empty, don't execute
-      if (path != '/health' && authToken.isEmpty) {
-        return false;
-      }
-
       final response = await _client.post(
-        Uri.parse('$url$path'),
+        Uri.parse('$primaryUrl$path'),
         headers: headers,
-        body: body != null ? jsonEncode(body) : null,
-      ).timeout(_timeout);
+        body: bodyJson,
+      ).timeout(const Duration(milliseconds: 2500));
 
       _check401(response);
-      return response.statusCode == 200;
+      if (response.statusCode == 200) return true;
     } catch (e) {
-      _handleError(e, showSnackBar: showSnackBar);
-      return false;
+      debugPrint('Primary route failed ($primaryUrl$path): $e');
+      // 2. Failover to secondary route if available
+      if (fallbackUrl != primaryUrl && fallbackUrl.isNotEmpty) {
+        try {
+          debugPrint('Failing over to secondary route: $fallbackUrl$path');
+          final response = await _client.post(
+            Uri.parse('$fallbackUrl$path'),
+            headers: headers,
+            body: bodyJson,
+          ).timeout(_timeout);
+
+          _check401(response);
+          if (response.statusCode == 200) {
+            _preferRemote = !_preferRemote;
+            return true;
+          }
+        } catch (e2) {
+          _handleError(e2, showSnackBar: showSnackBar);
+          return false;
+        }
+      } else {
+        _handleError(e, showSnackBar: showSnackBar);
+      }
     }
+    return false;
   }
 
   // ──────────────────────────────────────
@@ -247,6 +304,7 @@ class ApiService {
     String protocol = 'https',
     String fingerprint = '',
     String serverName = 'PC Remote',
+    String publicUrl = '',
   }) async {
     // Use a fresh, isolated TLS client per pairing attempt.
     // Avoids shared-client state / connection-pool issues on Android.
@@ -258,6 +316,9 @@ class ApiService {
       // Cache fingerprint for TLS certificate pinning
       if (fingerprint.isNotEmpty) {
         await _prefs.setString('server_fingerprint', fingerprint);
+      }
+      if (publicUrl.isNotEmpty) {
+        await _prefs.setString('public_url', publicUrl);
       }
 
       final response = await pairingClient.post(
@@ -395,7 +456,7 @@ class ApiService {
 
   static Future<String?> changePIN(String currentPin, String newPin) async {
     try {
-      final url = _baseUrl;
+      final url = _activeBaseUrl;
       final response = await _client.post(
         Uri.parse('$url/system/pin'),
         headers: _headers,

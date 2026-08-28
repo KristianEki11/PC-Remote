@@ -62,6 +62,7 @@ class _QRScanScreenState extends State<QRScanScreen> {
       final fingerprint = data['fingerprint'] as String? ?? '';
       final serverName = data['server_name'] as String? ?? 'PC Remote';
       final alternateHosts = (data['alternate_hosts'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+      final publicUrl = data['public_url'] as String? ?? '';
 
       if (host == null || host.isEmpty || pairToken == null || pairToken.isEmpty) {
         throw const FormatException('Format QR code tidak valid untuk PC Remote.');
@@ -75,6 +76,7 @@ class _QRScanScreenState extends State<QRScanScreen> {
         protocol: protocol,
         fingerprint: fingerprint,
         serverName: serverName,
+        publicUrl: publicUrl,
       );
 
       // 3. If primary host fails, automatically try alternate LAN hosts
@@ -89,6 +91,7 @@ class _QRScanScreenState extends State<QRScanScreen> {
             protocol: protocol,
             fingerprint: fingerprint,
             serverName: serverName,
+            publicUrl: publicUrl,
           );
           if (token != null) {
             connectedHost = altHost;

@@ -1,4 +1,4 @@
-package tray
+﻿package tray
 
 import (
 	"encoding/json"
@@ -11,6 +11,7 @@ import (
 
 	"pcremote-server/auth"
 	tlsutil "pcremote-server/tls"
+	"pcremote-server/tunnel"
 )
 
 // QRPageHandler serves the Steam-inspired dashboard for pairing and managing connected devices.
@@ -18,6 +19,7 @@ import (
 type QRPageHandler struct {
 	Pairing  *auth.PairingManager
 	Sessions *auth.SessionManager
+	Tunnel   *tunnel.TunnelManager
 }
 
 // ServeQRPage handles GET /internal/qr.
@@ -97,6 +99,14 @@ func (h *QRPageHandler) ServeQRPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	publicURL := ""
+	tunnelStatus := "disabled"
+	if h.Tunnel != nil {
+		st, pURL, _ := h.Tunnel.GetStatus()
+		tunnelStatus = string(st)
+		publicURL = pURL
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 
@@ -110,6 +120,8 @@ func (h *QRPageHandler) ServeQRPage(w http.ResponseWriter, r *http.Request) {
 	page = strings.ReplaceAll(page, "{{EXPIRES_IN}}", strconv.Itoa(expiresIn))
 	page = strings.ReplaceAll(page, "{{INTERFACES_JSON}}", string(interfacesJSON))
 	page = strings.ReplaceAll(page, "{{SERVER_NAME}}", rawPayload.ServerName)
+	page = strings.ReplaceAll(page, "{{PUBLIC_URL}}", publicURL)
+	page = strings.ReplaceAll(page, "{{TUNNEL_STATUS}}", tunnelStatus)
 
 	if isPaired {
 		page = strings.ReplaceAll(page, "{{IS_PAIRED}}", "true")
@@ -156,11 +168,22 @@ func (h *QRPageHandler) ServeStatus(w http.ResponseWriter, r *http.Request) {
 
 	session := h.Sessions.GetActiveSession()
 	connected, deviceName := h.Sessions.IsDeviceConnected()
+
+	var publicURL string
+	var tunnelStatus string
+	if h.Tunnel != nil {
+		st, pURL, _ := h.Tunnel.GetStatus()
+		tunnelStatus = string(st)
+		publicURL = pURL
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"has_session": session != nil,
-		"connected":   connected,
-		"device_name": deviceName,
+		"has_session":   session != nil,
+		"connected":     connected,
+		"device_name":   deviceName,
+		"public_url":    publicURL,
+		"tunnel_status": tunnelStatus,
 	})
 }
 
@@ -221,7 +244,7 @@ const qrPageHTML = `<!DOCTYPE html>
   /* Main Steam-Like Modal Container */
   .steam-modal {
     width: 100%;
-    max-width: 860px;
+    max-width: 880px;
     background: var(--color-bg-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-modal);
@@ -328,7 +351,7 @@ const qrPageHTML = `<!DOCTYPE html>
   .left-col {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
   }
 
   .section-label {
@@ -337,13 +360,13 @@ const qrPageHTML = `<!DOCTYPE html>
     color: var(--color-accent-gold);
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .form-label {
@@ -354,12 +377,12 @@ const qrPageHTML = `<!DOCTYPE html>
 
   .steam-select {
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px 12px;
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-input);
     color: var(--color-text-white);
-    font-size: 13px;
+    font-size: 12.5px;
     font-family: inherit;
     outline: none;
     cursor: pointer;
@@ -374,7 +397,7 @@ const qrPageHTML = `<!DOCTYPE html>
   .info-tiles-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
   }
   @media (max-width: 500px) {
     .info-tiles-grid { grid-template-columns: 1fr; }
@@ -384,34 +407,34 @@ const qrPageHTML = `<!DOCTYPE html>
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-input);
-    padding: 12px 14px;
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
   .tile-k { font-size: 10px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .tile-v { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--color-text-white); font-weight: 600; }
+  .tile-v { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-text-white); font-weight: 600; }
 
   /* Fingerprint Section with PIN Lock */
   .fp-card {
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-input);
-    padding: 14px 16px;
+    padding: 10px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
   }
   .fp-content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     overflow: hidden;
   }
   .fp-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--color-text-light);
     word-break: break-all;
   }
@@ -421,12 +444,12 @@ const qrPageHTML = `<!DOCTYPE html>
   }
 
   .btn-gold {
-    padding: 8px 14px;
+    padding: 6px 12px;
     background: linear-gradient(135deg, var(--color-accent-gold) 0%, #A58852 100%);
     border: none;
     border-radius: var(--radius-btn);
     color: #171D25;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 700;
     cursor: pointer;
     display: flex;
@@ -453,7 +476,7 @@ const qrPageHTML = `<!DOCTYPE html>
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
   }
 
   .qr-heading {
@@ -468,7 +491,7 @@ const qrPageHTML = `<!DOCTYPE html>
   /* Crisp White QR Card (Steam Style) */
   .qr-card-white {
     background: #FFFFFF;
-    padding: 18px;
+    padding: 16px;
     border-radius: 12px;
     box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
     display: flex;
@@ -489,7 +512,7 @@ const qrPageHTML = `<!DOCTYPE html>
     font-size: 12px;
     color: var(--color-text-muted);
     text-align: center;
-    line-height: 1.5;
+    line-height: 1.4;
   }
   .qr-footer-hint a {
     color: var(--color-accent-gold);
@@ -654,7 +677,7 @@ const qrPageHTML = `<!DOCTYPE html>
     <div class="left-col">
       <div>
         <div class="section-label">PENGATURAN KONEKSI SERVER</div>
-        <div class="form-group" style="margin-top: 8px;">
+        <div class="form-group" style="margin-top: 6px;">
           <label class="form-label">Jalur Adapter Jaringan (IP)</label>
           <select class="steam-select" id="networkSelect" onchange="switchAdapter(this.value)">
             <!-- Populated via JS -->
@@ -665,13 +688,22 @@ const qrPageHTML = `<!DOCTYPE html>
       <!-- Quick Server Info -->
       <div class="info-tiles-grid">
         <div class="steam-tile">
-          <span class="tile-k">Server Host</span>
+          <span class="tile-k">Server Host (LAN)</span>
           <span class="tile-v" id="tileHost">{{HOST}}:{{PORT}}</span>
         </div>
         <div class="steam-tile">
           <span class="tile-k">Protokol Keamanan</span>
           <span class="tile-v" style="color: var(--color-indicator-green);">HTTPS (TLS Encrypted)</span>
         </div>
+      </div>
+
+      <!-- Public / Internet Anywhere Access Tile -->
+      <div class="steam-tile" style="border-color: rgba(194, 165, 109, 0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="tile-k" style="color: var(--color-accent-gold);">Akses Publik / Internet (4G/5G / Luar Rumah)</span>
+          <span id="tunnelBadge" class="status-badge connected" style="padding: 2px 8px; font-size: 10px;">🟢 Aktif</span>
+        </div>
+        <span class="tile-v" id="tilePublicUrl" style="font-size: 11px; word-break: break-all; color: var(--color-text-light);">{{PUBLIC_URL}}</span>
       </div>
 
       <!-- Certificate Fingerprint (PIN Protected) -->
@@ -690,7 +722,7 @@ const qrPageHTML = `<!DOCTYPE html>
       </div>
 
       <div style="font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin-top: auto;">
-        💡 <strong>Petunjuk:</strong> Buka aplikasi <strong>PC Remote</strong> di HP Anda, lalu arahkan pemindai ke QR Code di sebelah kanan. Sesi akan otomatis tersimpan secara permanen.
+        💡 <strong>Petunjuk:</strong> Buka aplikasi <strong>PC Remote</strong> di HP Anda, lalu scan QR Code di sebelah kanan. Aplikasi mendukung <strong>Dual-Stack</strong> (otomatis via WiFi saat di rumah, otomatis via Internet publik saat di luar).
       </div>
     </div>
 
@@ -748,13 +780,16 @@ const qrPageHTML = `<!DOCTYPE html>
 <script>
   const isPairedInit = {{IS_PAIRED}};
   const realFingerprint = "{{FINGERPRINT}}";
-  const encryptedPayload = "{{ENCRYPTED_PAYLOAD}}";
+  let encryptedPayload = "{{ENCRYPTED_PAYLOAD}}";
   const networkInterfaces = {{INTERFACES_JSON}};
+  let currentPublicURL = "{{PUBLIC_URL}}";
 
   function initPage() {
     const isPaired = isPairedInit;
     document.getElementById('pairedView').style.display = isPaired ? 'flex' : 'none';
     document.getElementById('unpairedView').style.display = isPaired ? 'none' : 'flex';
+
+    updateTunnelDisplay("{{TUNNEL_STATUS}}", currentPublicURL);
 
     if (!isPaired) {
       const select = document.getElementById('networkSelect');
@@ -766,6 +801,31 @@ const qrPageHTML = `<!DOCTYPE html>
         select.appendChild(opt);
       });
       renderQR(encryptedPayload);
+    }
+  }
+
+  function updateTunnelDisplay(status, url) {
+    const badge = document.getElementById('tunnelBadge');
+    const urlEl = document.getElementById('tilePublicUrl');
+
+    if (url && url.length > 0) {
+      badge.textContent = '🟢 Aktif';
+      badge.className = 'status-badge connected';
+      badge.style.padding = '2px 8px';
+      badge.style.fontSize = '10px';
+      urlEl.textContent = url;
+    } else if (status === 'starting') {
+      badge.textContent = '⏳ Menghubungkan';
+      badge.className = 'status-badge standby';
+      badge.style.padding = '2px 8px';
+      badge.style.fontSize = '10px';
+      urlEl.textContent = 'Menghubungkan ke Cloudflare Edge...';
+    } else {
+      badge.textContent = '⚪ Offline';
+      badge.className = 'status-badge disconnected';
+      badge.style.padding = '2px 8px';
+      badge.style.fontSize = '10px';
+      urlEl.textContent = 'Menunggu koneksi internet...';
     }
   }
 
@@ -845,6 +905,10 @@ const qrPageHTML = `<!DOCTYPE html>
         const data = await res.json();
         if (data.has_session !== isPairedInit) {
           window.location.reload();
+        }
+        if (data.public_url !== currentPublicURL) {
+          currentPublicURL = data.public_url;
+          updateTunnelDisplay(data.tunnel_status, data.public_url);
         }
       }
     } catch (_) {}
