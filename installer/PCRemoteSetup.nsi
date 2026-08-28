@@ -73,7 +73,10 @@ Section "MainSection" SEC01
     SetOutPath "$INSTDIR"
 
     ; Kill any running server processes first to unlock files
-    nsExec::ExecToStack 'taskkill /F /IM pcremote-server.exe'
+    nsExec::ExecToStack 'taskkill /F /IM pcremote-server.exe /T'
+    nsExec::ExecToStack 'taskkill /F /IM PCRemoteDashboard.exe /T'
+    nsExec::ExecToStack 'taskkill /F /IM cloudflared.exe /T'
+    Sleep 1000
 
     ; Cleanup any old NSSM service if it exists from previous installations
     nsExec::ExecToStack 'nssm stop PCRemoteServer'
