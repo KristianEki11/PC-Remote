@@ -13,7 +13,7 @@ import (
 	tlsutil "pcremote-server/tls"
 )
 
-// QRPageHandler serves the HTML dashboard for pairing and managing connected devices.
+// QRPageHandler serves the Steam-inspired dashboard for pairing and managing connected devices.
 // This endpoint is restricted to localhost.
 type QRPageHandler struct {
 	Pairing  *auth.PairingManager
@@ -27,7 +27,7 @@ func (h *QRPageHandler) ServeQRPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Get all usable network interfaces on the host
+	// 1. Discover all usable LAN interfaces
 	interfaces := tlsutil.GetAllLANInterfaces()
 	interfaces = append(interfaces, tlsutil.InterfaceInfo{
 		Name:      "USB Cable / Localhost",
@@ -44,7 +44,7 @@ func (h *QRPageHandler) ServeQRPage(w http.ResponseWriter, r *http.Request) {
 		h.Pairing.UpdateAlternateHosts(alts)
 	}
 
-	// 2. Check if a device is already paired
+	// 2. Check active pairing session
 	session := h.Sessions.GetActiveSession()
 	isPaired := session != nil
 	pairedDeviceName := ""
@@ -59,7 +59,7 @@ func (h *QRPageHandler) ServeQRPage(w http.ResponseWriter, r *http.Request) {
 		isOnline = session.IsOnline()
 	}
 
-	// 3. Generate encrypted pairing payload (AES-256 encrypted for PC Remote only)
+	// 3. Generate AES-256 encrypted QR payload
 	encryptedPayload, err := h.Pairing.GetEncryptedPayload()
 	if err != nil {
 		slog.Error("Failed to generate encrypted QR payload", "error", err)
@@ -72,14 +72,14 @@ func (h *QRPageHandler) ServeQRPage(w http.ResponseWriter, r *http.Request) {
 	expiresAt := h.Pairing.ExpiresAt()
 	expiresIn := int(time.Until(expiresAt).Seconds())
 
-	statusText := "Siap Pairing (Belum Ada HP Terhubung)"
+	statusText := "Siap Pairing"
 	statusClass := "disconnected"
 	if isPaired {
 		if isOnline {
-			statusText = fmt.Sprintf("🟢 Terhubung: %s", pairedDeviceName)
+			statusText = fmt.Sprintf("Terhubung: %s", pairedDeviceName)
 			statusClass = "connected"
 		} else {
-			statusText = fmt.Sprintf("⚪ Tersimpan (Standby): %s", pairedDeviceName)
+			statusText = fmt.Sprintf("Tersimpan (Standby): %s", pairedDeviceName)
 			statusClass = "standby"
 		}
 	}
@@ -156,213 +156,381 @@ const qrPageHTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PC Remote — Device Pairing & Dashboard</title>
+<title>PC Remote — Steam-Style Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg-base: #080A0F;
-    --bg-surface: rgba(16, 20, 32, 0.85);
-    --bg-surface-elevated: rgba(24, 30, 48, 0.7);
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(99, 102, 241, 0.4);
-    --primary-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #D946EF 100%);
-    --primary-glow: rgba(99, 102, 241, 0.35);
-    --text-main: #FFFFFF;
-    --text-muted: #94A3B8;
-    --text-dim: #64748B;
-    --emerald-glow: rgba(16, 185, 129, 0.2);
-    --emerald-border: rgba(16, 185, 129, 0.4);
-    --emerald-text: #34D399;
-    --ruby-glow: rgba(244, 63, 94, 0.2);
-    --ruby-border: rgba(244, 63, 94, 0.4);
-    --ruby-text: #F87171;
-    --radius-xl: 24px;
-    --radius-lg: 16px;
-    --radius-md: 12px;
+    /* Steam-Style Custom Palette */
+    --color-bg-base: #171D25;
+    --color-bg-surface: #2C3947;
+    --color-bg-elevated: #1E2630;
+    --color-accent-slate: #547A95;
+    --color-accent-gold: #C2A56D;
+    --color-text-light: #E8EDF2;
+    --color-text-white: #FFFFFF;
+    --color-text-muted: #93A8B8;
+    --color-border: rgba(84, 122, 149, 0.35);
+    --color-border-focus: #547A95;
+    
+    /* Indicator Colors */
+    --color-indicator-green: #22C55E;
+    --color-indicator-green-bg: rgba(34, 197, 94, 0.15);
+    --color-indicator-red: #EF4444;
+    --color-indicator-red-bg: rgba(239, 68, 68, 0.15);
+    --color-indicator-amber: #F59E0B;
+    --color-indicator-amber-bg: rgba(245, 158, 11, 0.15);
+
+    --radius-modal: 16px;
+    --radius-btn: 8px;
+    --radius-input: 6px;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: var(--bg-base);
-    color: var(--text-main);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--color-bg-base);
+    color: var(--color-text-light);
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
     background-image: 
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.2), transparent),
-      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(217, 70, 239, 0.12), transparent);
+      radial-gradient(circle at 20% 15%, rgba(84, 122, 149, 0.18), transparent 45%),
+      radial-gradient(circle at 80% 85%, rgba(194, 165, 109, 0.12), transparent 45%),
+      linear-gradient(180deg, #18202A 0%, #12161C 100%);
     background-attachment: fixed;
   }
 
-  .container {
+  /* Main Steam-Like Modal Container */
+  .steam-modal {
     width: 100%;
-    max-width: 900px;
+    max-width: 860px;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-modal);
+    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    overflow: hidden;
   }
 
   /* Header Section */
-  .header {
-    background: var(--bg-surface);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-xl);
-    padding: 24px 32px;
+  .steam-header {
+    background: #1F2833;
+    padding: 20px 28px;
+    border-bottom: 1px solid rgba(84, 122, 149, 0.25);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
   }
 
-  .brand { display: flex; align-items: center; gap: 16px; }
-  .logo-badge {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    background: var(--primary-gradient);
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .steam-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--color-accent-gold) 0%, #8E7445 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 20px var(--primary-glow);
+    color: #171D25;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(194, 165, 109, 0.3);
   }
-  .logo-badge svg { width: 26px; height: 26px; fill: #fff; }
-  .title-group h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-  .title-group p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .steam-logo svg { width: 20px; height: 20px; fill: #171D25; }
 
-  /* Status Pill */
-  .status-pill {
+  .header-title-wrap h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-text-white);
+    letter-spacing: -0.3px;
+  }
+  .header-title-wrap p {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    margin-top: 1px;
+  }
+
+  /* Status Badge */
+  .status-badge {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
-    border-radius: 9999px;
-    font-size: 13px;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
     font-weight: 600;
-    border: 1px solid var(--border-subtle);
-    background: rgba(255, 255, 255, 0.03);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
   }
-  .status-pill.connected {
-    background: var(--emerald-glow);
-    border-color: var(--emerald-border);
-    color: var(--emerald-text);
+  .status-badge.connected {
+    background: var(--color-indicator-green-bg);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: var(--color-indicator-green);
   }
-  .status-pill.standby {
-    background: rgba(251, 191, 36, 0.15);
-    border-color: rgba(251, 191, 36, 0.35);
-    color: #FBBF24;
+  .status-badge.standby {
+    background: var(--color-indicator-amber-bg);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: var(--color-indicator-amber);
   }
-  .status-pill.disconnected {
+  .status-badge.disconnected {
     background: rgba(255, 255, 255, 0.05);
-    border-color: var(--border-subtle);
-    color: var(--text-muted);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
   }
-  .status-dot {
+  .badge-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: currentColor;
-    box-shadow: 0 0 10px currentColor;
-    animation: pulse 2s infinite ease-in-out;
+    box-shadow: 0 0 8px currentColor;
   }
-  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
 
-  /* Main Grid */
-  .main-grid {
+  /* Body: Two Column Steam Layout */
+  .steam-body {
+    padding: 32px 36px;
     display: grid;
-    grid-template-columns: 380px 1fr;
+    grid-template-columns: 1fr 340px;
+    gap: 36px;
+  }
+  @media (max-width: 780px) {
+    .steam-body {
+      grid-template-columns: 1fr;
+      padding: 24px;
+      gap: 28px;
+    }
+  }
+
+  /* Left Column: Form & Connection Info */
+  .left-col {
+    display: flex;
+    flex-direction: column;
     gap: 20px;
   }
-  @media (max-width: 840px) {
-    .main-grid { grid-template-columns: 1fr; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--color-accent-gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
   }
 
-  .card {
-    background: var(--bg-surface);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-xl);
-    padding: 28px;
+  .form-group {
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    gap: 6px;
   }
 
-  /* QR Box & States */
-  .qr-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    height: 100%;
-  }
-
-  .qr-frame {
-    position: relative;
-    padding: 16px;
-    background: #FFFFFF;
-    border-radius: var(--radius-lg);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.3s ease;
-  }
-  .qr-frame:hover { transform: translateY(-2px); }
-  .qr-frame canvas { display: block; width: 220px; height: 220px; }
-
-  /* Paired Device Card */
-  .paired-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 16px;
-    padding: 24px 16px;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--emerald-border);
-    border-radius: var(--radius-lg);
-    width: 100%;
-  }
-  .paired-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: var(--emerald-glow);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--emerald-text);
-  }
-  .paired-device-name {
-    font-size: 18px;
-    font-weight: 700;
-    color: #FFFFFF;
-  }
-  .paired-meta {
+  .form-label {
     font-size: 12px;
-    color: var(--text-muted);
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  .steam-select {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-input);
+    color: var(--color-text-white);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .steam-select:focus {
+    border-color: var(--color-accent-slate);
+    box-shadow: 0 0 0 2px rgba(84, 122, 149, 0.25);
+  }
+
+  /* Info Tiles */
+  .info-tiles-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 500px) {
+    .info-tiles-grid { grid-template-columns: 1fr; }
+  }
+
+  .steam-tile {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-input);
+    padding: 12px 14px;
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
+  .tile-k { font-size: 10px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .tile-v { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--color-text-white); font-weight: 600; }
 
-  /* Buttons */
-  .btn-unpair {
+  /* Fingerprint Section with PIN Lock */
+  .fp-card {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-input);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .fp-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+  }
+  .fp-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--color-text-light);
+    word-break: break-all;
+  }
+  .fp-value.masked {
+    letter-spacing: 3px;
+    color: var(--color-text-muted);
+  }
+
+  .btn-gold {
+    padding: 8px 14px;
+    background: linear-gradient(135deg, var(--color-accent-gold) 0%, #A58852 100%);
+    border: none;
+    border-radius: var(--radius-btn);
+    color: #171D25;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+  }
+  .btn-gold:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+
+  /* Right Column: Steam-Style QR Box (Primary) */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .qr-steam-box {
     width: 100%;
-    padding: 12px 20px;
-    border-radius: var(--radius-md);
-    background: rgba(244, 63, 94, 0.15);
-    border: 1px solid var(--ruby-border);
-    color: var(--ruby-text);
-    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .qr-heading {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--color-accent-gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+  /* Crisp White QR Card (Steam Style) */
+  .qr-card-white {
+    background: #FFFFFF;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+  }
+  .qr-card-white:hover {
+    transform: scale(1.02);
+  }
+  .qr-card-white svg {
+    display: block;
+    width: 220px;
+    height: 220px;
+  }
+
+  .qr-footer-hint {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+  .qr-footer-hint a {
+    color: var(--color-accent-gold);
+    text-decoration: underline;
+    font-weight: 600;
+  }
+
+  /* Paired State Card (When phone is active) */
+  .paired-state-box {
+    width: 100%;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-indicator-green);
+    border-radius: var(--radius-modal);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.15);
+  }
+  .paired-state-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--color-indicator-green-bg);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-indicator-green);
+  }
+  .paired-state-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-white);
+  }
+  .paired-state-meta {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .btn-unpair-danger {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-btn);
+    background: var(--color-indicator-red-bg);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: var(--color-indicator-red);
+    font-size: 12.5px;
     font-weight: 700;
     cursor: pointer;
     display: flex;
@@ -371,298 +539,180 @@ const qrPageHTML = `<!DOCTYPE html>
     gap: 8px;
     transition: all 0.2s ease;
   }
-  .btn-unpair:hover {
-    background: rgba(244, 63, 94, 0.25);
+  .btn-unpair-danger:hover {
+    background: rgba(239, 68, 68, 0.25);
     transform: translateY(-1px);
   }
-
-  /* Adapter Selector */
-  .selector-group {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .selector-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .custom-select {
-    width: 100%;
-    padding: 10px 14px;
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    color: var(--text-main);
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    cursor: pointer;
-    transition: border-color 0.2s ease;
-  }
-  .custom-select:focus { border-color: #6366F1; }
-
-  /* Info Matrix */
-  .info-matrix {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: auto;
-  }
-  .info-tile {
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 14px 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .tile-left { display: flex; flex-direction: column; gap: 2px; }
-  .tile-title { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
-  .tile-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-main); }
-  .tile-val.masked { letter-spacing: 2px; color: var(--text-dim); }
-
-  .btn-unlock {
-    padding: 6px 12px;
-    background: rgba(99, 102, 241, 0.15);
-    border: 1px solid rgba(99, 102, 241, 0.35);
-    color: #A5B4FC;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s ease;
-  }
-  .btn-unlock:hover {
-    background: rgba(99, 102, 241, 0.3);
-  }
-
-  /* Guide Steps */
-  .guide-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin: 16px 0;
-  }
-  .guide-step {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-  }
-  .step-num {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--primary-gradient);
-    font-size: 13px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .step-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
-  .step-content p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
   /* PIN Modal */
   .modal-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s ease;
+    transition: opacity 0.2s ease;
     z-index: 1000;
   }
   .modal-overlay.active {
     opacity: 1;
     pointer-events: auto;
   }
-  .modal-box {
-    background: #121622;
-    border: 1px solid var(--border-hover);
-    border-radius: var(--radius-xl);
-    padding: 28px;
+  .modal-card {
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-modal);
+    padding: 26px;
     width: 100%;
     max-width: 360px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    transform: translateY(20px);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    gap: 16px;
   }
-  .modal-overlay.active .modal-box { transform: translateY(0); }
-  .modal-box h3 { font-size: 18px; font-weight: 800; }
-  .modal-box p { font-size: 13px; color: var(--text-muted); }
-  .pin-input {
+  .modal-card h3 { font-size: 16px; font-weight: 700; color: var(--color-text-white); }
+  .modal-card p { font-size: 12.5px; color: var(--color-text-muted); line-height: 1.4; }
+  .pin-field {
     width: 100%;
-    padding: 12px 16px;
+    padding: 12px;
     font-size: 18px;
     text-align: center;
-    letter-spacing: 4px;
-    border-radius: var(--radius-md);
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-subtle);
-    color: #FFFFFF;
+    letter-spacing: 5px;
+    border-radius: var(--radius-input);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-white);
     outline: none;
   }
-  .pin-input:focus { border-color: #6366F1; }
-  .modal-actions { display: flex; gap: 10px; }
-  .btn-primary {
+  .pin-field:focus { border-color: var(--color-accent-gold); }
+  .modal-btns { display: flex; gap: 10px; }
+  .btn-modal-cancel {
     flex: 1;
-    padding: 12px;
-    border-radius: var(--radius-md);
-    background: var(--primary-gradient);
-    color: #FFFFFF;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-  }
-  .btn-secondary {
-    padding: 12px 18px;
-    border-radius: var(--radius-md);
+    padding: 10px;
     background: transparent;
-    border: 1px solid var(--border-subtle);
-    color: var(--text-muted);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    border-radius: var(--radius-btn);
     font-weight: 600;
     cursor: pointer;
   }
-  .error-text { color: var(--ruby-text); font-size: 12px; text-align: center; display: none; }
+  .btn-modal-submit {
+    flex: 1;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--color-accent-gold) 0%, #A58852 100%);
+    border: none;
+    color: #171D25;
+    border-radius: var(--radius-btn);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .error-msg { color: var(--color-indicator-red); font-size: 12px; text-align: center; display: none; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 </head>
 <body>
 
-<div class="container">
-  <!-- Header -->
-  <header class="header">
-    <div class="brand">
-      <div class="logo-badge">
+<div class="steam-modal">
+  <!-- Steam Header -->
+  <header class="steam-header">
+    <div class="header-brand">
+      <div class="steam-logo">
         <svg viewBox="0 0 24 24"><path d="M4 6h16v10H4z M2 18h20v2H2z"/></svg>
       </div>
-      <div class="title-group">
-        <h1>PC Remote Dashboard</h1>
-        <p>{{SERVER_NAME}} • v3.0.0</p>
+      <div class="header-title-wrap">
+        <h1>PC Remote Connection</h1>
+        <p>{{SERVER_NAME}} • Windows PC Service v3.0.0</p>
       </div>
     </div>
-    <div class="status-pill {{STATUS_CLASS}}" id="statusPill">
-      <span class="status-dot"></span>
+    <div class="status-badge {{STATUS_CLASS}}" id="statusBadge">
+      <span class="badge-dot"></span>
       <span id="statusText">{{STATUS_TEXT}}</span>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <div class="main-grid">
-    <!-- Left: QR / Paired Card -->
-    <div class="card">
-      <div class="qr-container">
-        <!-- If already paired -->
-        <div id="pairedView" style="display: {{IS_PAIRED}} ? 'flex' : 'none'; width: 100%; flex-direction: column; gap: 16px;">
-          <div class="paired-card">
-            <div class="paired-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-            </div>
-            <div>
-              <div class="paired-device-name" id="pairedDeviceName">{{PAIRED_DEVICE_NAME}}</div>
-              <div class="paired-meta">
-                <span>Alamat: <strong style="color: #fff;" id="pairedAddr">{{PAIRED_ADDR}}</strong></span>
-                <span>Terhubung Sejak: <span id="pairedSince">{{PAIRED_SINCE}}</span></span>
-              </div>
-            </div>
-            <div style="font-size: 12px; color: var(--emerald-text); background: var(--emerald-glow); padding: 4px 12px; border-radius: 999px; border: 1px solid var(--emerald-border);">
-              🔒 Sesi Aktif & Terdaftar Permanen
-            </div>
+  <!-- Steam Body -->
+  <div class="steam-body">
+    <!-- LEFT: Connection Info & Network Controls -->
+    <div class="left-col">
+      <div>
+        <div class="section-label">PENGATURAN KONEKSI SERVER</div>
+        <div class="form-group" style="margin-top: 8px;">
+          <label class="form-label">Jalur Adapter Jaringan (IP)</label>
+          <select class="steam-select" id="networkSelect" onchange="switchAdapter(this.value)">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick Server Info -->
+      <div class="info-tiles-grid">
+        <div class="steam-tile">
+          <span class="tile-k">Server Host</span>
+          <span class="tile-v" id="tileHost">{{HOST}}:{{PORT}}</span>
+        </div>
+        <div class="steam-tile">
+          <span class="tile-k">Protokol Keamanan</span>
+          <span class="tile-v" style="color: var(--color-indicator-green);">HTTPS (TLS Encrypted)</span>
+        </div>
+      </div>
+
+      <!-- Certificate Fingerprint (PIN Protected) -->
+      <div>
+        <div class="section-label">KEAMANAN & SIDIK JARI TLS</div>
+        <div class="fp-card">
+          <div class="fp-content">
+            <span class="tile-k">SHA-256 Fingerprint</span>
+            <span class="fp-value masked" id="fpVal">••••••••••••••••••••••••••••••••••••••••</span>
           </div>
-          <button class="btn-unpair" onclick="unpairDevice()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-            Putuskan Perangkat (Unpair)
+          <button class="btn-gold" id="btnUnlockFp" onclick="openPinModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Buka Kunci
           </button>
         </div>
+      </div>
 
-        <!-- If not paired: Show QR -->
-        <div id="unpairedView" style="display: {{IS_PAIRED}} ? 'none' : 'flex'; flex-direction: column; align-items: center; gap: 16px; width: 100%;">
-          <div class="selector-group">
-            <label class="selector-label">Pilih Jalur Jaringan (Adapter)</label>
-            <select class="custom-select" id="networkSelect" onchange="switchAdapter(this.value)">
-              <!-- Options populated by JS -->
-            </select>
-          </div>
-
-          <div class="qr-frame">
-            <div id="qrCanvas"></div>
-          </div>
-
-          <div style="font-size: 12px; color: var(--text-dim); text-align: center;">
-            🔐 Payload QR dienkripsi (AES-256) khusus untuk PC Remote App
-          </div>
-        </div>
+      <div style="font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin-top: auto;">
+        💡 <strong>Petunjuk:</strong> Buka aplikasi <strong>PC Remote</strong> di HP Anda, lalu arahkan pemindai ke QR Code di sebelah kanan. Sesi akan otomatis tersimpan secara permanen.
       </div>
     </div>
 
-    <!-- Right: Info Matrix & Steps -->
-    <div class="card" style="justify-content: space-between;">
-      <div>
-        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Panduan Koneksi Cepat</h3>
-        <p style="font-size: 13px; color: var(--text-muted);">Hanya perlu 1x scan QR untuk menghubungkan HP Anda selamanya.</p>
-
-        <div class="guide-list">
-          <div class="guide-step">
-            <div class="step-num">1</div>
-            <div class="step-content">
-              <h4>Buka PC Remote di HP</h4>
-              <p>Pastikan HP terhubung ke Wi-Fi yang sama atau tersambung kabel USB.</p>
-            </div>
-          </div>
-          <div class="guide-step">
-            <div class="step-num">2</div>
-            <div class="step-content">
-              <h4>Pindai QR Code di Kiri</h4>
-              <p>Tekan tombol "Pindai QR Code" pada aplikasi HP dan arahkan ke layar.</p>
-            </div>
-          </div>
-          <div class="guide-step">
-            <div class="step-num">3</div>
-            <div class="step-content">
-              <h4>Selesai & Otomatis Tersimpan</h4>
-              <p>Sesi HP akan tersimpan permanen tanpa perlu scan ulang saat buka app.</p>
-            </div>
-          </div>
+    <!-- RIGHT: QR Code (Primary Steam-Style) -->
+    <div class="right-col">
+      <!-- When Unpaired: Show QR -->
+      <div class="qr-steam-box" id="unpairedView" style="display: {{IS_PAIRED}} ? 'none' : 'flex';">
+        <div class="qr-heading">HUBUNGKAN DENGAN QR CODE</div>
+        <div class="qr-card-white">
+          <div id="qrCanvas"></div>
+        </div>
+        <div class="qr-footer-hint">
+          Gunakan <span style="color: var(--color-text-white); font-weight: 600;">Aplikasi PC Remote</span><br>untuk pairing otomatis via kode QR
         </div>
       </div>
 
-      <!-- Security Info Matrix -->
-      <div class="info-matrix">
-        <div class="info-tile">
-          <div class="tile-left">
-            <span class="tile-title">Host Server Lokal</span>
-            <span class="tile-val" id="tileHost">{{HOST}}:{{PORT}}</span>
+      <!-- When Paired: Show Active Connected Device Card -->
+      <div class="paired-state-box" id="pairedView" style="display: {{IS_PAIRED}} ? 'flex' : 'none';">
+        <div class="paired-state-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <div>
+          <div class="paired-state-title" id="pairedDeviceName">{{PAIRED_DEVICE_NAME}}</div>
+          <div class="paired-state-meta" style="margin-top: 6px;">
+            <span>IP: <strong style="color: #fff;" id="pairedAddr">{{PAIRED_ADDR}}</strong></span>
+            <span>Tersambung: <span id="pairedSince">{{PAIRED_SINCE}}</span></span>
           </div>
         </div>
-
-        <div class="info-tile">
-          <div class="tile-left">
-            <span class="tile-title">TLS SHA-256 Fingerprint</span>
-            <span class="tile-val masked" id="fingerprintVal">••••••••••••••••••••••••••••••••••••••••</span>
-          </div>
-          <button class="btn-unlock" id="btnUnlockFp" onclick="openPinModal()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Buka Kunci (PIN)
-          </button>
+        <div style="font-size: 11px; color: var(--color-indicator-green); background: var(--color-indicator-green-bg); padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(34, 197, 94, 0.4);">
+          🔒 Sesi Aktif & Terdaftar
         </div>
+        <button class="btn-unpair-danger" onclick="unpairDevice()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Putuskan Perangkat (Unpair)
+        </button>
       </div>
     </div>
   </div>
@@ -670,14 +720,14 @@ const qrPageHTML = `<!DOCTYPE html>
 
 <!-- Master PIN Modal -->
 <div class="modal-overlay" id="pinModal">
-  <div class="modal-box">
+  <div class="modal-card">
     <h3>Verifikasi PIN Server</h3>
-    <p>Masukkan PIN PC Remote untuk membuka detail sidik jari sertifikat TLS.</p>
-    <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="8" autofocus onkeydown="if(event.key==='Enter') submitPinVerification()">
-    <div class="error-text" id="pinError">PIN yang Anda masukkan salah.</div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closePinModal()">Batal</button>
-      <button class="btn-primary" onclick="submitPinVerification()">Buka Kunci</button>
+    <p>Masukkan Master PIN PC Remote untuk membuka detail sidik jari sertifikat TLS.</p>
+    <input type="password" id="pinInput" class="pin-field" placeholder="••••" maxlength="8" autofocus onkeydown="if(event.key==='Enter') submitPinVerification()">
+    <div class="error-msg" id="pinError">PIN yang dimasukkan salah.</div>
+    <div class="modal-btns">
+      <button class="btn-modal-cancel" onclick="closePinModal()">Batal</button>
+      <button class="btn-modal-submit" onclick="submitPinVerification()">Buka Kunci</button>
     </div>
   </div>
 </div>
@@ -688,7 +738,6 @@ const qrPageHTML = `<!DOCTYPE html>
   const encryptedPayload = "{{ENCRYPTED_PAYLOAD}}";
   const networkInterfaces = {{INTERFACES_JSON}};
 
-  // Init Adapter selector & QR
   function initPage() {
     const isPaired = isPairedInit;
     document.getElementById('pairedView').style.display = isPaired ? 'flex' : 'none';
@@ -700,7 +749,7 @@ const qrPageHTML = `<!DOCTYPE html>
       networkInterfaces.forEach(iface => {
         const opt = document.createElement('option');
         opt.value = iface.ip;
-        opt.textContent = iface.name + ' (' + iface.ip + ')' + (iface.is_primary ? ' — Rekomendasi' : '');
+        opt.textContent = iface.name + ' (' + iface.ip + ')' + (iface.is_primary ? ' — Default' : '');
         select.appendChild(opt);
       });
       renderQR(encryptedPayload);
@@ -725,23 +774,20 @@ const qrPageHTML = `<!DOCTYPE html>
 
   function switchAdapter(ip) {
     document.getElementById('tileHost').textContent = ip + ':{{PORT}}';
-    // Encrypted payload contains all alternate hosts, so it works across adapters
   }
 
-  // Unpair Action
   async function unpairDevice() {
-    if (!confirm('Apakah Anda yakin ingin memutuskan perangkat ini? HP harus scan QR ulang untuk tersambung kembali.')) return;
+    if (!confirm('Putuskan sambungan perangkat ini? HP harus scan QR ulang untuk menghubungkan kembali.')) return;
     try {
       const res = await fetch('/internal/unpair', { method: 'POST' });
       if (res.ok) {
         window.location.reload();
       }
     } catch (e) {
-      alert('Gagal memutuskan perangkat: ' + e);
+      alert('Gagal: ' + e);
     }
   }
 
-  // PIN Unlock Modal
   function openPinModal() {
     document.getElementById('pinModal').classList.add('active');
     document.getElementById('pinInput').value = '';
@@ -765,8 +811,7 @@ const qrPageHTML = `<!DOCTYPE html>
       });
 
       if (res.ok) {
-        // Unlock fingerprint display
-        const fpEl = document.getElementById('fingerprintVal');
+        const fpEl = document.getElementById('fpVal');
         fpEl.textContent = realFingerprint;
         fpEl.classList.remove('masked');
         document.getElementById('btnUnlockFp').style.display = 'none';
@@ -780,13 +825,11 @@ const qrPageHTML = `<!DOCTYPE html>
     }
   }
 
-  // Poll status every 4 seconds
   setInterval(async () => {
     try {
       const res = await fetch('/internal/status');
       if (res.ok) {
         const data = await res.json();
-        // If state changed from unpaired to paired, reload to switch view
         if (data.has_session !== isPairedInit) {
           window.location.reload();
         }
