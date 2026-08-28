@@ -662,7 +662,7 @@ const qrPageHTML = `<!DOCTYPE html>
       </div>
       <div class="header-title-wrap">
         <h1>PC Remote Connection</h1>
-        <p>{{SERVER_NAME}} • Windows PC Service v3.0.0</p>
+        <p>{{SERVER_NAME}} • Windows PC Service v4.0.0</p>
       </div>
     </div>
     <div class="status-badge {{STATUS_CLASS}}" id="statusBadge">

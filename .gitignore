@@ -60,11 +60,20 @@ server/build/
 *.spec
 
 # ────────────────────────────────────────────────────────────
-# ENVIRONMENT & SECRETS
+# ENVIRONMENT, SESSIONS & TLS SECRETS
 # ────────────────────────────────────────────────────────────
-# .env berisi PIN — jangan pernah di-push
+# .env, session data, TLS keys & certificates — jangan pernah di-push
 .env
+*.env
 server/.env
+server/dist/.env
+session.json
+**/session.json
+*.pem
+*.key
+*.crt
+server/tls/
+server/send_media_temp_*.ps1
 
 # Tapi .env.example boleh di-push (template tanpa nilai sensitif)
 !.env.example

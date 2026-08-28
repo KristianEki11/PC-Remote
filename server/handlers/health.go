@@ -9,7 +9,7 @@ import (
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, http.StatusOK, map[string]string{
 		"status":   "ok",
-		"version":  "3.0.0",
+		"version":  "4.0.0",
 		"platform": "windows",
 	})
 }

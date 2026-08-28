@@ -1,6 +1,6 @@
-# 📱 PC Remote Controller (v3.0.0)
+# 📱 PC Remote Controller (v4.0.0)
 
-A secure, high-performance, and lightweight remote control suite that allows you to manage your Windows PC directly from your Android device over a local WiFi network. 
+A secure, high-performance, and lightweight remote control suite that allows you to manage your Windows PC directly from your Android device over both **Local WiFi (LAN)** and **Public Internet (4G/5G/WAN)** via automatic Cloudflare Quick Tunnels.
 
 This repository contains the complete codebase for both the **Go-based backend server** (run as a Windows service) and the **Flutter-based Android application**.
 
@@ -10,38 +10,38 @@ This repository contains the complete codebase for both the **Go-based backend s
 
 The project consists of three main components:
 
-1. **Go Server (`/server`)**: A lightweight, concurrency-safe Windows background application that listens for authenticated commands from the mobile app and executes them using Windows API integrations and COM interfaces.
-2. **Flutter App (`/app`)**: A modern, responsive Android application featuring a clean dark-mode dashboard to control system volume, media playback, browser links, and power states.
-3. **NSIS Installer (`/installer`)**: An installer script that packs the server and dashboard executables, registers the server in the User Startup folder for autostart, creates Desktop/Start Menu shortcuts for the Dashboard, prompts for firewall rules, and guides the user.
+1. **Go Server (`/server`)**: A lightweight, concurrency-safe Windows background application that listens for authenticated commands from the mobile app and executes them using Windows API integrations and COM interfaces. Features built-in zero-config **Cloudflare Quick Tunnel** support for seamless out-of-home access.
+2. **Flutter App (`/app`)**: A modern, responsive Android application featuring a clean dark-mode dashboard with **Intelligent Dual-Stack Auto-Failover** to control system volume, media playback, browser links, and power states from anywhere.
+3. **NSIS Installer (`/installer`)**: An installer script that packs the server, dashboard, and tunnel executables, registers the server in the User Startup folder for autostart, creates Desktop/Start Menu shortcuts for the Dashboard, prompts for firewall rules, and guides the user.
 
 ```
-┌─────────────────┐       Local WiFi (HTTP)       ┌──────────────────┐
-│   Android App   ├──────────────────────────────>│    Go Backend    │
-│ (Flutter Client)│   PIN Auth & Bearer Token     │ (Background App) │
-│                 │   + QR Code Pairing (TLS)     │                  │
-└─────────────────┘                               └────────┬─────────┘
-                                                           │ Win32 API / COM / SMTC
-                                                           ▼
-                                                  ┌──────────────────┐
-                                                  │    Windows OS    │
-                                                  │ (Volume, Media,  │
-                                                  │  Power, Browser) │
-                                                  └──────────────────┘
+┌─────────────────┐    Local WiFi (LAN HTTPS) / Public Cloudflare Tunnel    ┌──────────────────┐
+│   Android App   ├────────────────────────────────────────────────────────>│    Go Backend    │
+│ (Flutter Client)│         PIN Auth & Bearer Token + AES QR Pairing        │ (Background App) │
+│                 │               (Dual-Stack Auto-Failover)                │                  │
+└─────────────────┘                                                         └────────┬─────────┘
+                                                                                     │ Win32 API / COM / SMTC
+                                                                                     ▼
+                                                                            ┌──────────────────┐
+                                                                            │    Windows OS    │
+                                                                            │ (Volume, Media,  │
+                                                                            │  Power, Browser) │
+                                                                            └──────────────────┘
 ```
 
 ---
 
 ## ✨ Features
 
-- 📱 **Instant QR Code Pairing**: Scan and pair securely with one click using encrypted one-time pairing tokens and TLS certificate pinning.
+- 🌐 **Seamless Public Internet Access (Anywhere / 4G / WAN)**: Control your PC from outside your home network or across restrictive router AP Isolation environments with zero router port-forwarding required.
+- 📱 **Instant AES QR Code Pairing**: Scan and pair securely with one click using encrypted one-time pairing tokens and TLS certificate pinning with Dual-Stack fallback.
 - 🔐 **PIN Authentication**: Secure authorization using custom PINs (4-8 digits) with bcrypt password hashing and rate-limiting brute-force defense.
 - 🔊 **Advanced Audio Control**: Retrieve and modify system master volume and mute state. Supports deep COM interfaces to query application sessions (including support for SteelSeries Sonar virtual channels).
-- 🎵 **Native Media Control & Sync**: Directly calls Windows System Media Transport Controls (SMTC) (Play/Pause, Next, Previous) to control media players (Spotify, YouTube, Chrome, VLC, etc.) remotely. Features real-time Windows Media Session synchronization (via WinRT GSMTC) to display active track titles, artist details, and playback state dynamically on the client dashboard.
+- 🎵 **Native Media Control & Sync**: Directly calls Windows System Media Transport Controls (SMTC) (Play/Pause, Next, Previous, Quick Seek -10s/+10s) to control media players (YouTube, Spotify, Chrome, Edge, Brave, VLC, etc.) remotely with full GSMTC live synchronization.
 - 🌐 **Remote Browser Launch**: Open any URL instantly in Microsoft Edge or the system's default browser.
 - ⚡ **Power & Lifecycle Management**: Sleep, lock, restart, and shutdown commands. Includes cancellation endpoints to recover from accidental trigger commands.
-- 🖥️ **Display Off**: Instantly turn off the monitor screen backlight using Win32 API broadcasts without sleeping or locking the system. Kept awake via thread execution state APIs until the user actively wakes the monitor back up.
-- 📦 **UAC-Safe Autostart**: Runs quietly in the background. The installer registers the application to the User Startup folder for automatic launch upon logging in, avoiding UAC privileges restrictions.
-- 📶 **Installer Private Network Wizard**: Guides the user to configure their WiFi profile as "Private", avoiding typical connection blocks caused by Windows Defender Firewall.
+- 🖥️ **Display Off**: Instantly turn off the monitor screen backlight using Win32 API broadcasts without sleeping or locking the system.
+- 📦 **UAC-Safe Autostart**: Runs quietly in the background. The installer registers the application to the User Startup folder for automatic launch upon logging in.
 
 ---
 
@@ -57,13 +57,13 @@ The project consists of three main components:
 │   ├── config/                 # Environment & config handlers
 │   ├── handlers/               # HTTP API handler logic & unit tests
 │   ├── middleware/             # Auth & Rate limiters
+│   ├── tunnel/                 # Cloudflare Quick Tunnel manager
 │   ├── windows/                # Win32 & COM API wrappers
 │   ├── dist/                   # Directory containing compiled server binary
 │   └── go.mod                  # Go module definition
 ├── installer/                  # NSIS Installer project files
 │   ├── PCRemoteSetup.nsi       # NSIS installation script
 │   └── license.txt             # License terms displayed in installer
-├── BRS_PRD_PCRemote.md         # Original product requirements document
 └── MIGRATION_NOTES.md          # Reference notes for Python -> Go migration
 ```
 
@@ -75,9 +75,9 @@ If you just want to use the application to control your PC, you do not need to c
 
 ### Step 1: Download the Files
 1. Go to the [Releases](https://github.com/KristianEki11/PC-Remote/releases) page of this repository.
-2. Under the latest version (e.g. `v3.0.0`), download two files:
+2. Under the latest version (e.g. `v4.0.0`), download two files:
    - **`PCRemoteSetup.exe`** (Installer for your Windows PC)
-   - **`PCRemoteApp.apk`** (Application for your Android Phone)
+   - **`app-release.apk`** (Application for your Android Phone)
 
 ### Step 2: Setup the Windows PC Server
 1. Double-click **`PCRemoteSetup.exe`** on your PC to launch the setup wizard (accept the Administrator prompt).
