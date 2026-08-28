@@ -138,20 +138,30 @@ func (pm *PairingManager) GetQRPayload() (*QRPayload, error) {
 	return payload, nil
 }
 
-// GetQRImage generates a QR code PNG image containing the pairing payload.
-// size controls the width/height in pixels.
-func (pm *PairingManager) GetQRImage(size int) ([]byte, error) {
+// GetEncryptedPayload returns the AES-256-CBC encrypted QR string "PCR3:<base64>".
+func (pm *PairingManager) GetEncryptedPayload() (string, error) {
 	payload, err := pm.GetQRPayload()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	jsonBytes, err := json.Marshal(payload)
 	if err != nil {
+		return "", err
+	}
+
+	return EncryptQRPayload(jsonBytes)
+}
+
+// GetQRImage generates a QR code PNG image containing the encrypted pairing payload.
+// size controls the width/height in pixels.
+func (pm *PairingManager) GetQRImage(size int) ([]byte, error) {
+	encrypted, err := pm.GetEncryptedPayload()
+	if err != nil {
 		return nil, err
 	}
 
-	return qrcode.Encode(string(jsonBytes), qrcode.Medium, size)
+	return qrcode.Encode(encrypted, qrcode.Medium, size)
 }
 
 // GetCurrentPayload returns the current active pairing payload without generating a new token.

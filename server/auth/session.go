@@ -3,6 +3,10 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -11,8 +15,8 @@ const (
 	// TokenLength is the number of random bytes used to generate a session token (32 bytes = 64 hex chars).
 	TokenLength = 32
 
-	// DefaultTokenTTL is how long a session token remains valid.
-	DefaultTokenTTL = 24 * time.Hour
+	// DefaultTokenTTL is how long a session token remains valid (1 year for seamless persistent pairing).
+	DefaultTokenTTL = 365 * 24 * time.Hour
 
 	// HeartbeatTimeout defines how long without activity before a device is considered offline.
 	// The Flutter app polls /audio/status every 10s and /media/status every 5s,
@@ -38,7 +42,7 @@ func (s *Session) IsOnline() bool {
 	return time.Since(s.LastSeenAt) < HeartbeatTimeout
 }
 
-// SessionManager manages a single active session (max 1 device).
+// SessionManager manages a single active session (max 1 device) with persistent disk backing.
 // A new login automatically revokes the previous session.
 type SessionManager struct {
 	mu       sync.RWMutex
@@ -52,18 +56,33 @@ type SessionManager struct {
 	OnStatusChange func(connected bool, deviceName string)
 }
 
-// NewSessionManager creates a new session manager and starts the cleanup loop.
+// NewSessionManager creates a new session manager, restores any saved session from disk,
+// and starts the cleanup loop.
 func NewSessionManager() *SessionManager {
 	sm := &SessionManager{
 		tokenTTL: DefaultTokenTTL,
 		stopCh:   make(chan struct{}),
 	}
+
+	// Restore persisted session from disk if still valid
+	if saved := loadSessionFromDisk(); saved != nil {
+		if time.Now().Before(saved.ExpiresAt) {
+			sm.current = saved
+			slog.Info("Restored active paired session from disk",
+				"device", saved.DeviceName,
+				"paired_at", saved.CreatedAt.Format(time.RFC3339),
+			)
+		} else {
+			deleteSessionDiskFile()
+		}
+	}
+
 	go sm.cleanupLoop()
 	return sm
 }
 
-// CreateSession generates a new cryptographic token and registers the device.
-// Since max 1 device is allowed, any existing session is automatically revoked.
+// CreateSession generates a new cryptographic token, registers the device, and persists to disk.
+// Since max 1 device is allowed, any existing session is automatically replaced.
 func (sm *SessionManager) CreateSession(deviceName, remoteAddr string) (*Session, error) {
 	token, err := generateToken()
 	if err != nil {
@@ -83,6 +102,9 @@ func (sm *SessionManager) CreateSession(deviceName, remoteAddr string) (*Session
 	sm.mu.Lock()
 	sm.current = session
 	sm.mu.Unlock()
+
+	// Persist to disk so server restarts don't drop the paired device
+	saveSessionToDisk(session)
 
 	if sm.OnStatusChange != nil {
 		sm.OnStatusChange(true, deviceName)
@@ -116,12 +138,14 @@ func (sm *SessionManager) ValidateToken(token string) (*Session, bool) {
 	return session, true
 }
 
-// RevokeAll disconnects the currently connected device.
+// RevokeAll disconnects the currently connected device and removes the persisted session file.
 func (sm *SessionManager) RevokeAll() {
 	sm.mu.Lock()
 	hadSession := sm.current != nil
 	sm.current = nil
 	sm.mu.Unlock()
+
+	deleteSessionDiskFile()
 
 	if hadSession && sm.OnStatusChange != nil {
 		sm.OnStatusChange(false, "")
@@ -198,4 +222,63 @@ func generateToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// ──────────────────────────────────────
+// Disk Persistence Helpers
+// ──────────────────────────────────────
+
+func getSessionFilePath() string {
+	localAppData := os.Getenv("LOCALAPPDATA")
+	if localAppData != "" {
+		dir := filepath.Join(localAppData, "PCRemote")
+		_ = os.MkdirAll(dir, 0700)
+		return filepath.Join(dir, "session.json")
+	}
+	return "session.json"
+}
+
+func saveSessionToDisk(s *Session) {
+	if s == nil {
+		return
+	}
+	filePath := getSessionFilePath()
+	data, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		slog.Error("Failed to marshal session for disk", "error", err)
+		return
+	}
+
+	tmpPath := filePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+		slog.Error("Failed to write temp session file", "error", err)
+		return
+	}
+
+	_ = os.Remove(filePath)
+	if err := os.Rename(tmpPath, filePath); err != nil {
+		slog.Error("Failed to commit session file to disk", "error", err)
+	}
+}
+
+func loadSessionFromDisk() *Session {
+	filePath := getSessionFilePath()
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil
+	}
+
+	var session Session
+	if err := json.Unmarshal(data, &session); err != nil {
+		slog.Warn("Failed to unmarshal session from disk", "error", err)
+		return nil
+	}
+
+	return &session
+}
+
+func deleteSessionDiskFile() {
+	filePath := getSessionFilePath()
+	_ = os.Remove(filePath)
+	_ = os.Remove(filePath + ".tmp")
 }

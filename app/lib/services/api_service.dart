@@ -292,6 +292,41 @@ class ApiService {
     }
   }
 
+  /// Verifies whether an existing cached Bearer session token is still valid on the server.
+  /// Returns:
+  /// - `true`: Token is valid and authenticated
+  /// - `false`: Token was explicitly revoked / expired (401 Unauthorized)
+  /// - `null`: Server is offline / network unreachable (temporary, should not wipe token)
+  static Future<bool?> verifySession(String ip, String token) async {
+    final client = _createTrustingClient();
+    try {
+      final formattedUrl = _formatUrl(ip);
+      debugPrint('Verifying session at: $formattedUrl/auth/verify');
+
+      final response = await client.get(
+        Uri.parse('$formattedUrl/auth/verify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+          'X-Device-Name': 'Flutter Mobile App',
+        },
+      ).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+      if (response.statusCode == 401) {
+        return false;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Session verify failed (server may be offline): $e');
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
   /// Manual login with IP and PIN (calls /auth/login, receives session token).
 
   static Future<String?> login(String ip, String pin) async {

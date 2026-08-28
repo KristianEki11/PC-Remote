@@ -111,20 +111,22 @@ func main() {
 	mux.Handle("/auth/login", authLimiter.Middleware(authMux))
 	mux.Handle("/auth/pair", authLimiter.Middleware(authMux))
 
-	// ── Auth endpoints (require Bearer token) ────────────
-	mux.HandleFunc("/auth/logout", authH.LogoutHandler) // protected by main auth middleware
-
 	// ── Internal endpoints (localhost only) ──────────────
 	internalMux := http.NewServeMux()
 	internalMux.HandleFunc("/internal/qr", qrPage.ServeQRPage)
 	internalMux.HandleFunc("/internal/qr/image", qrPage.ServeQRImage)
 	internalMux.HandleFunc("/internal/status", qrPage.ServeStatus)
+	internalMux.HandleFunc("/internal/unpair", authH.UnpairHandler)
+	internalMux.HandleFunc("/internal/verify-pin", authH.VerifyPinHandler)
 	internalMux.HandleFunc("/auth/sessions", authH.SessionsHandler)
 	mux.Handle("/internal/", middleware.LocalhostOnly(internalMux))
 	mux.Handle("/auth/sessions", middleware.LocalhostOnly(http.HandlerFunc(authH.SessionsHandler)))
 
 	// ── Protected API endpoints ──────────────────────────
 	protectedMux := http.NewServeMux()
+
+	protectedMux.HandleFunc("/auth/verify", authH.VerifyHandler)
+	protectedMux.HandleFunc("/auth/logout", authH.LogoutHandler)
 
 	protectedMux.HandleFunc("/audio/volume", handlers.AudioVolumeHandler)
 	protectedMux.HandleFunc("/audio/mute", handlers.AudioMuteHandler)

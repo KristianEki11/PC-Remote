@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../models/app_state.dart';
 import '../services/api_service.dart';
+import '../utils/qr_crypto.dart';
 import '../utils/theme.dart';
 import 'dashboard_screen.dart';
 
@@ -46,8 +47,13 @@ class _QRScanScreenState extends State<QRScanScreen> {
     });
 
     try {
-      // 1. Parse JSON payload from QR code
-      final Map<String, dynamic> data = jsonDecode(rawValue);
+      // 1. Decrypt AES-encrypted QR payload (PCR3:...) or fallback to plain JSON
+      final decryptedJson = QRCrypto.decrypt(rawValue);
+      if (decryptedJson == null) {
+        throw const FormatException('QR Code bukan format resmi PC Remote atau data rusak.');
+      }
+
+      final Map<String, dynamic> data = jsonDecode(decryptedJson);
 
       final host = data['host'] as String?;
       final port = data['port']?.toString() ?? '8000';

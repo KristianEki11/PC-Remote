@@ -163,6 +163,73 @@ func (ah *AuthHandlers) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	authSendJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
+// ── GET /auth/verify ─────────────────────────────────────────
+// Verifies if the caller's Bearer token is valid and returns device connection details.
+// Protected by authMiddleware (returns 401 if token is invalid or expired).
+func (ah *AuthHandlers) VerifyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		authSendJSON(w, http.StatusMethodNotAllowed, authErrorResponse{Error: "method not allowed"})
+		return
+	}
+
+	session := ah.Sessions.GetActiveSession()
+	if session == nil {
+		authSendJSON(w, http.StatusUnauthorized, authErrorResponse{Error: "no active session"})
+		return
+	}
+
+	authSendJSON(w, http.StatusOK, map[string]any{
+		"valid":       true,
+		"device_name": session.DeviceName,
+		"expires_at":  session.ExpiresAt.Format(time.RFC3339),
+		"online":      session.IsOnline(),
+	})
+}
+
+// ── POST /internal/unpair ────────────────────────────────────
+// Unpairs the currently paired device from the PC dashboard.
+// Restricted to localhost via middleware.
+func (ah *AuthHandlers) UnpairHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		authSendJSON(w, http.StatusMethodNotAllowed, authErrorResponse{Error: "method not allowed"})
+		return
+	}
+
+	ah.Sessions.RevokeAll()
+	slog.Info("Device explicitly unpaired from PC dashboard")
+	authSendJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "Device unpaired successfully",
+	})
+}
+
+// ── POST /internal/verify-pin ────────────────────────────────
+// Verifies master PIN to unlock sensitive info (e.g. TLS fingerprint) on QR page.
+// Restricted to localhost via middleware.
+func (ah *AuthHandlers) VerifyPinHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		authSendJSON(w, http.StatusMethodNotAllowed, authErrorResponse{Error: "method not allowed"})
+		return
+	}
+
+	var req struct {
+		PIN string `json:"pin"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&req); err != nil {
+		authSendJSON(w, http.StatusBadRequest, authErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	if req.PIN == "" || !config.ValidatePIN(req.PIN) {
+		authSendJSON(w, http.StatusUnauthorized, authErrorResponse{Error: "PIN salah"})
+		return
+	}
+
+	authSendJSON(w, http.StatusOK, map[string]any{
+		"valid": true,
+	})
+}
+
 // ── GET /auth/sessions ───────────────────────────────────────
 // Returns the active session status. Used by the system tray and internal QR page.
 // This endpoint should be restricted to localhost via middleware.

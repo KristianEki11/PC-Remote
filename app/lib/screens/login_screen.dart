@@ -43,11 +43,15 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      // Try login/ping to verify token
-      final token = await ApiService.login(savedIp, savedToken);
-      if (token != null) {
-        if (!mounted) return;
-        Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, token);
+      // Verify existing session token with server
+      final isValid = await ApiService.verifySession(savedIp, savedToken);
+
+      if (!mounted) return;
+
+      if (isValid == true) {
+        // Session is verified and active!
+        Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, savedToken);
+        Provider.of<AppState>(context, listen: false).setConnectionStatus(true);
 
         // Update server version cache in background
         ApiService.healthCheck().then((health) {
@@ -60,27 +64,23 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
+      } else if (isValid == null) {
+        // Server is offline / network unreachable (temporary).
+        // DO NOT wipe the token! Allow entering dashboard in offline mode.
+        Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, savedToken);
+        Provider.of<AppState>(context, listen: false).setConnectionStatus(false);
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
       } else {
-        // If login fails, check if the server is just offline
-        final health = await ApiService.healthCheck();
-        if (health == null) {
-          // Server is unreachable (offline). We still auto-login using cached details
-          // so the user can access the dashboard in offline mode.
-          if (!mounted) return;
-          Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, savedToken);
-          Provider.of<AppState>(context, listen: false).setConnectionStatus(false);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const DashboardScreen()),
-          );
-        } else {
-          // Server is online but credentials failed (PIN/session expired)
-          await prefs.remove('auth_token');
-          setState(() {
-            _isLoading = false;
-            _errorMessage = 'Sesi telah berakhir atau PIN salah. Silakan hubungkan kembali.';
-          });
-        }
+        // isValid == false -> Session was explicitly revoked on PC (401 Unauthorized)
+        await prefs.remove('auth_token');
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Sesi telah diputus dari PC. Silakan pindai QR Code kembali.';
+        });
       }
     }
   }
