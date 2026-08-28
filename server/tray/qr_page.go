@@ -1,4 +1,4 @@
-﻿package tray
+package tray
 
 import (
 	"encoding/json"
@@ -909,10 +909,14 @@ const qrPageHTML = `<!DOCTYPE html>
         if (data.public_url !== currentPublicURL) {
           currentPublicURL = data.public_url;
           updateTunnelDisplay(data.tunnel_status, data.public_url);
+          // If not currently paired, reload to embed the newly assigned Public URL into the QR payload!
+          if (!isPairedInit) {
+            window.location.reload();
+          }
         }
       }
     } catch (_) {}
-  }, 4000);
+  }, 3000);
 
   initPage();
 </script>

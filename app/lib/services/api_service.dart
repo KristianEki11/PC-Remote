@@ -307,13 +307,8 @@ class ApiService {
     String publicUrl = '',
   }) async {
     // Use a fresh, isolated TLS client per pairing attempt.
-    // Avoids shared-client state / connection-pool issues on Android.
     final pairingClient = _createTrustingClient();
     try {
-      final targetUrl = '$protocol://$host:$port';
-      debugPrint('Pairing with QR code at: $targetUrl/auth/pair');
-
-      // Cache fingerprint for TLS certificate pinning
       if (fingerprint.isNotEmpty) {
         await _prefs.setString('server_fingerprint', fingerprint);
       }
@@ -321,29 +316,69 @@ class ApiService {
         await _prefs.setString('public_url', publicUrl);
       }
 
-      final response = await pairingClient.post(
-        Uri.parse('$targetUrl/auth/pair'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Device-Name': 'Flutter Mobile ($serverName)',
-        },
-        body: jsonEncode({
-          'pair_token': pairToken,
-        }),
-      ).timeout(_timeout);
+      // 1. Try Local LAN IP first
+      final targetUrl = '$protocol://$host:$port';
+      debugPrint('Attempting QR pairing via LAN: $targetUrl/auth/pair');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final token = data['token'] as String?;
-        if (token != null) {
-          final ipHost = '$host:$port';
-          await _prefs.setString('last_ip', ipHost);
-          await _prefs.setString('auth_token', token);
-          return token;
+      try {
+        final response = await pairingClient.post(
+          Uri.parse('$targetUrl/auth/pair'),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Device-Name': 'Flutter Mobile ($serverName)',
+          },
+          body: jsonEncode({
+            'pair_token': pairToken,
+          }),
+        ).timeout(const Duration(milliseconds: 2500));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final token = data['token'] as String?;
+          if (token != null) {
+            final ipHost = '$host:$port';
+            await _prefs.setString('last_ip', ipHost);
+            await _prefs.setString('auth_token', token);
+            _preferRemote = false;
+            return token;
+          }
+        }
+      } catch (e) {
+        debugPrint('Local LAN pairing failed (possibly cellular data or router isolation): $e');
+      }
+
+      // 2. Dual-Stack Failover: Try Public Cloudflare Tunnel (for 4G/cellular or router AP isolation)
+      if (publicUrl.isNotEmpty) {
+        final cleanPublicUrl = publicUrl.endsWith('/') ? publicUrl.substring(0, publicUrl.length - 1) : publicUrl;
+        debugPrint('Attempting QR pairing via Public Tunnel: $cleanPublicUrl/auth/pair');
+        try {
+          final response = await pairingClient.post(
+            Uri.parse('$cleanPublicUrl/auth/pair'),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Device-Name': 'Flutter Mobile ($serverName)',
+            },
+            body: jsonEncode({
+              'pair_token': pairToken,
+            }),
+          ).timeout(const Duration(seconds: 8));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            final token = data['token'] as String?;
+            if (token != null) {
+              final ipHost = '$host:$port';
+              await _prefs.setString('last_ip', ipHost);
+              await _prefs.setString('auth_token', token);
+              _preferRemote = true;
+              return token;
+            }
+          }
+        } catch (e2) {
+          debugPrint('Public tunnel pairing failed: $e2');
         }
       }
 
-      debugPrint('QR pairing failed with status: ${response.statusCode}, body: ${response.body}');
       return null;
     } catch (e) {
       _handleError(e);
