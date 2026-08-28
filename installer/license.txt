@@ -1,5 +1,3 @@
 MIT License
 
-Copyright (c) 2026 PC Remote Controller
-
-Permission is hereby granted, free of charge...
+Copyright (c) 2026 Ki Dev
