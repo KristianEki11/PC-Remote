@@ -115,25 +115,31 @@ func (pm *PairingManager) UpdateAlternateHosts(hosts []string) {
 	pm.mu.Unlock()
 }
 
-// GetQRPayload generates a new pairing token and returns the full QR payload.
-// This is called each time the QR code page is loaded/refreshed.
+// GetQRPayload returns the active QR payload, creating a new token only if the current one is expired or used.
+// This prevents token invalidation race conditions when rendering QR pages.
 func (pm *PairingManager) GetQRPayload() (*QRPayload, error) {
-	token, err := pm.GenerateToken()
-	if err != nil {
-		return nil, err
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	if pm.currentToken == "" || pm.used || time.Now().After(pm.expiresAt) {
+		b := make([]byte, PairTokenLength)
+		if _, err := rand.Read(b); err != nil {
+			return nil, err
+		}
+		pm.currentToken = hex.EncodeToString(b)
+		pm.expiresAt = time.Now().Add(PairTokenTTL)
+		pm.used = false
 	}
 
-	pm.mu.Lock()
 	payload := &QRPayload{
 		Host:           pm.host,
 		Port:           pm.port,
-		PairToken:      token,
+		PairToken:      pm.currentToken,
 		Protocol:       "https",
 		Fingerprint:    pm.fingerprint,
 		ServerName:     pm.serverName,
 		AlternateHosts: pm.alternateHosts,
 	}
-	pm.mu.Unlock()
 
 	return payload, nil
 }

@@ -1,4 +1,4 @@
-﻿package tray
+package tray
 
 import (
 	"encoding/json"
@@ -59,15 +59,28 @@ func (h *QRPageHandler) ServeQRPage(w http.ResponseWriter, r *http.Request) {
 		isOnline = session.IsOnline()
 	}
 
-	// 3. Generate AES-256 encrypted QR payload
-	encryptedPayload, err := h.Pairing.GetEncryptedPayload()
+	// 3. Generate QR payload and AES-256 encrypted string (single-pass)
+	rawPayload, err := h.Pairing.GetQRPayload()
 	if err != nil {
-		slog.Error("Failed to generate encrypted QR payload", "error", err)
+		slog.Error("Failed to get QR payload", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	rawPayload, _ := h.Pairing.GetQRPayload()
+	jsonBytes, err := json.Marshal(rawPayload)
+	if err != nil {
+		slog.Error("Failed to marshal QR payload", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	encryptedPayload, err := auth.EncryptQRPayload(jsonBytes)
+	if err != nil {
+		slog.Error("Failed to encrypt QR payload", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	interfacesJSON, _ := json.Marshal(interfaces)
 	expiresAt := h.Pairing.ExpiresAt()
 	expiresIn := int(time.Until(expiresAt).Seconds())
