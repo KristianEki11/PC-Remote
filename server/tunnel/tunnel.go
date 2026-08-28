@@ -162,9 +162,9 @@ func (tm *TunnelManager) runLoop() {
 		tm.cmd = cmd
 		tm.mu.Unlock()
 
-		// Read output to parse the assigned public trycloudflare.com URL
-		reader := io.MultiReader(stdout, stderr)
-		scanner := bufio.NewScanner(reader)
+		// Cloudflare tunnel writes connection logs and assigned URLs to stderr
+		go io.Copy(io.Discard, stdout)
+		scanner := bufio.NewScanner(stderr)
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -226,6 +226,9 @@ func (tm *TunnelManager) findOrDownloadBinary() (string, error) {
 
 	for _, path := range candidates {
 		if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
+			if abs, err := filepath.Abs(path); err == nil {
+				return abs, nil
+			}
 			return path, nil
 		}
 	}
