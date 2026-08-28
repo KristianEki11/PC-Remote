@@ -312,22 +312,26 @@ func init() {
 // Package-level functions delegating to API
 // ──────────────────────────────────────────────────────────
 
-func SetVolume(level float64) error                                  { return API.SetVolume(level) }
-func GetVolumeStatus() (level float64, muted bool, err error)        { return API.GetVolumeStatus() }
-func SetMute(muted bool) error                                       { return API.SetMute(muted) }
-func GetAllChannelVolumes() (map[string]ChannelStatus, error)        { return API.GetAllChannelVolumes() }
-func SetChannelVolume(channelName string, level float64) error       { return API.SetChannelVolume(channelName, level) }
-func SetChannelMute(channelName string, muted bool) error            { return API.SetChannelMute(channelName, muted) }
-func GetDevices() ([]DeviceStatus, error)                            { return API.GetDevices() }
-func SetDeviceVolume(id string, level float64) error                 { return API.SetDeviceVolume(id, level) }
-func SetDeviceMute(id string, muted bool) error                     { return API.SetDeviceMute(id, muted) }
-func SendMediaKey(action string) error                               { return API.SendMediaKey(action) }
-func GetMediaStatus() (map[string]any, error)                         { return API.GetMediaStatus() }
-func LockWorkstation() error                                         { return API.LockWorkstation() }
-func OpenBrowser(url string) error                                   { return API.OpenBrowser(url) }
-func ScheduleShutdown(delaySeconds int) error                        { return API.ScheduleShutdown(delaySeconds) }
-func CancelShutdown() error                                          { return API.CancelShutdown() }
-func Sleep() error                                                   { return API.Sleep() }
-func Restart() error                                                 { return API.Restart() }
-func TurnOffDisplay() error                                          { return API.TurnOffDisplay() }
-func DebugListAllDevices() ([]string, error)                         { return API.DebugListAllDevices() }
+func SetVolume(level float64) error                           { return API.SetVolume(level) }
+func GetVolumeStatus() (level float64, muted bool, err error) { return API.GetVolumeStatus() }
+func SetMute(muted bool) error                                { return API.SetMute(muted) }
+func GetAllChannelVolumes() (map[string]ChannelStatus, error) { return API.GetAllChannelVolumes() }
+func SetChannelVolume(channelName string, level float64) error {
+	return API.SetChannelVolume(channelName, level)
+}
+func SetChannelMute(channelName string, muted bool) error {
+	return API.SetChannelMute(channelName, muted)
+}
+func GetDevices() ([]DeviceStatus, error)            { return API.GetDevices() }
+func SetDeviceVolume(id string, level float64) error { return API.SetDeviceVolume(id, level) }
+func SetDeviceMute(id string, muted bool) error      { return API.SetDeviceMute(id, muted) }
+func SendMediaKey(action string) error               { return API.SendMediaKey(action) }
+func GetMediaStatus() (map[string]any, error)        { return API.GetMediaStatus() }
+func LockWorkstation() error                         { return API.LockWorkstation() }
+func OpenBrowser(url string) error                   { return API.OpenBrowser(url) }
+func ScheduleShutdown(delaySeconds int) error        { return API.ScheduleShutdown(delaySeconds) }
+func CancelShutdown() error                          { return API.CancelShutdown() }
+func Sleep() error                                   { return API.Sleep() }
+func Restart() error                                 { return API.Restart() }
+func TurnOffDisplay() error                          { return API.TurnOffDisplay() }
+func DebugListAllDevices() ([]string, error)         { return API.DebugListAllDevices() }

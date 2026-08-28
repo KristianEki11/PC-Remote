@@ -443,7 +443,7 @@ func (RealAPI) GetMediaStatus() (map[string]any, error) {
 	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write temp script file: %w", err)
 	}
-	
+
 	// Clean up script file after execution
 	defer os.Remove(scriptFile)
 
@@ -461,4 +461,3 @@ func (RealAPI) GetMediaStatus() (map[string]any, error) {
 	mediaCacheTime = time.Now()
 	return result, nil
 }
-

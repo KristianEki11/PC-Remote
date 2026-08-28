@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"pcremote-server/auth"
 	"pcremote-server/config"
 	"pcremote-server/middleware"
 	winapi "pcremote-server/windows"
@@ -202,9 +203,16 @@ func setTestPIN(pin string) func() {
 	return func() { config.App.PIN = old }
 }
 
+func getTestAuthMiddleware() func(http.Handler) http.Handler {
+	// Import "pcremote-server/auth" will be added by goimports
+	sm := auth.NewSessionManager()
+	rl := middleware.NewAuthRateLimiter()
+	return middleware.WithAuth(sm, rl)
+}
+
 func TestAuthMiddleware_NoPin(t *testing.T) {
 	defer setTestPIN("1234")()
-	handler := middleware.WithAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := getTestAuthMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	req := httptest.NewRequest("GET", "/protected", nil)
@@ -217,7 +225,7 @@ func TestAuthMiddleware_NoPin(t *testing.T) {
 
 func TestAuthMiddleware_WrongPin(t *testing.T) {
 	defer setTestPIN("1234")()
-	handler := middleware.WithAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := getTestAuthMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	req := httptest.NewRequest("GET", "/protected", nil)
@@ -231,7 +239,7 @@ func TestAuthMiddleware_WrongPin(t *testing.T) {
 
 func TestAuthMiddleware_CorrectPin(t *testing.T) {
 	defer setTestPIN("1234")()
-	handler := middleware.WithAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := getTestAuthMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	req := httptest.NewRequest("GET", "/protected", nil)
@@ -245,7 +253,7 @@ func TestAuthMiddleware_CorrectPin(t *testing.T) {
 
 func TestAuthMiddleware_EmptyServerPin(t *testing.T) {
 	defer setTestPIN("")()
-	handler := middleware.WithAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := getTestAuthMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	req := httptest.NewRequest("GET", "/protected", nil)
@@ -663,4 +671,3 @@ func TestSystemDisplayOffHandler_WrongMethod(t *testing.T) {
 		t.Errorf("expected 405, got %d", rr.Code)
 	}
 }
-

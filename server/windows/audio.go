@@ -497,10 +497,10 @@ func (RealAPI) DebugListAllDevices() ([]string, error) {
 		defer releaseDevices(captureDevs, 0)
 
 		for _, d := range renderDevs {
-			names = append(names, "[RENDER] " + d.name)
+			names = append(names, "[RENDER] "+d.name)
 		}
 		for _, d := range captureDevs {
-			names = append(names, "[CAPTURE] " + d.name)
+			names = append(names, "[CAPTURE] "+d.name)
 		}
 		return nil
 	})

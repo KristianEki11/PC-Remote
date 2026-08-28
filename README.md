@@ -1,4 +1,4 @@
-# 📱 PC Remote Controller (v2.2.10)
+# 📱 PC Remote Controller (v3.0.0)
 
 A secure, high-performance, and lightweight remote control suite that allows you to manage your Windows PC directly from your Android device over a local WiFi network. 
 
@@ -18,6 +18,7 @@ The project consists of three main components:
 ┌─────────────────┐       Local WiFi (HTTP)       ┌──────────────────┐
 │   Android App   ├──────────────────────────────>│    Go Backend    │
 │ (Flutter Client)│   PIN Auth & Bearer Token     │ (Background App) │
+│                 │   + QR Code Pairing (TLS)     │                  │
 └─────────────────┘                               └────────┬─────────┘
                                                            │ Win32 API / COM / SMTC
                                                            ▼
@@ -32,7 +33,8 @@ The project consists of three main components:
 
 ## ✨ Features
 
-- 🔐 **PIN Authentication**: Secure authorization using custom PINs (4-8 digits). Supports atomic `.env` configuration updates directly from the Android app without restarting the server.
+- 📱 **Instant QR Code Pairing**: Scan and pair securely with one click using encrypted one-time pairing tokens and TLS certificate pinning.
+- 🔐 **PIN Authentication**: Secure authorization using custom PINs (4-8 digits) with bcrypt password hashing and rate-limiting brute-force defense.
 - 🔊 **Advanced Audio Control**: Retrieve and modify system master volume and mute state. Supports deep COM interfaces to query application sessions (including support for SteelSeries Sonar virtual channels).
 - 🎵 **Native Media Control & Sync**: Directly calls Windows System Media Transport Controls (SMTC) (Play/Pause, Next, Previous) to control media players (Spotify, YouTube, Chrome, VLC, etc.) remotely. Features real-time Windows Media Session synchronization (via WinRT GSMTC) to display active track titles, artist details, and playback state dynamically on the client dashboard.
 - 🌐 **Remote Browser Launch**: Open any URL instantly in Microsoft Edge or the system's default browser.
@@ -73,7 +75,7 @@ If you just want to use the application to control your PC, you do not need to c
 
 ### Step 1: Download the Files
 1. Go to the [Releases](https://github.com/KristianEki11/PC-Remote/releases) page of this repository.
-2. Under the latest version (e.g. `v2.2.10`), download two files:
+2. Under the latest version (e.g. `v3.0.0`), download two files:
    - **`PCRemoteSetup.exe`** (Installer for your Windows PC)
    - **`PCRemoteApp.apk`** (Application for your Android Phone)
 

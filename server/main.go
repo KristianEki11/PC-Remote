@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -12,21 +13,21 @@ import (
 	"syscall"
 	"time"
 
+	"pcremote-server/auth"
 	"pcremote-server/config"
 	"pcremote-server/handlers"
 	"pcremote-server/middleware"
+	tlsutil "pcremote-server/tls"
+	"pcremote-server/tray"
 )
-
-// corsMiddleware has been moved to middleware/cors.go
 
 func main() {
 	// 0. Ensure working directory is the executable's directory.
-	// This fixes startup issues when running from Windows Startup folder or Task Scheduler.
 	if exePath, err := os.Executable(); err == nil {
 		os.Chdir(filepath.Dir(exePath))
 	}
 
-	// 1. Load config
+	// 1. Load config (auto-migrates plaintext PIN to bcrypt)
 	config.Init()
 
 	// 2. Setup structured logging
@@ -34,7 +35,6 @@ func main() {
 	if err := os.MkdirAll("logs", 0755); err != nil {
 		logPath = getFallbackLogPath()
 	} else {
-		// Test write access to the local logs directory
 		testFile := filepath.Join("logs", "write_test.tmp")
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 			logPath = getFallbackLogPath()
@@ -50,19 +50,80 @@ func main() {
 	defer logFile.Close()
 
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
-
 	logger := slog.New(slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
 
-	// 3. Setup router (using stdlib ServeMux)
+	// 3. Setup TLS certificates (auto-generate self-signed if needed)
+	certFile, keyFile, fingerprint, err := tlsutil.EnsureCertificates(config.App.TLSCertDir)
+	if err != nil {
+		slog.Error("Failed to setup TLS certificates", "error", err)
+		log.Fatalf("TLS setup failed: %v", err)
+	}
+
+	// 4. Initialize session manager (max 1 device)
+	sessions := auth.NewSessionManager()
+	defer sessions.Stop()
+
+	// 5. Initialize pairing manager with server details
+	localIP := tlsutil.GetLocalIP()
+	hostname, _ := os.Hostname()
+	if hostname == "" {
+		hostname = "PC Remote"
+	}
+	allLANs := tlsutil.GetAllLANInterfaces()
+	var alternateHosts []string
+	for _, iface := range allLANs {
+		if iface.IP != localIP {
+			alternateHosts = append(alternateHosts, iface.IP)
+		}
+	}
+	pairing := auth.NewPairingManager(localIP, config.App.Port, fingerprint, hostname, alternateHosts)
+
+	// 6. Initialize rate limiters
+	authLimiter := middleware.NewAuthRateLimiter() // 5 req/min for auth endpoints
+	generalLimiter := middleware.NewRateLimiter()  // 60 req/min for API endpoints
+
+	// 7. Auth handlers
+	authH := &auth.AuthHandlers{
+		Sessions: sessions,
+		Pairing:  pairing,
+		Limiter:  authLimiter,
+	}
+
+	// 8. QR page handler (internal, localhost-only)
+	qrPage := &tray.QRPageHandler{
+		Pairing:  pairing,
+		Sessions: sessions,
+	}
+
+	// 9. Setup router
 	mux := http.NewServeMux()
 
-	// 3a. Health endpoint (no auth)
+	// ── Public endpoints (no auth) ───────────────────────
 	mux.HandleFunc("/health", handlers.HealthHandler)
 
-	// 3b. Protected endpoints sub-router
+	// ── Auth endpoints (rate-limited, no Bearer required) ─
+	authMux := http.NewServeMux()
+	authMux.HandleFunc("/auth/login", authH.LoginHandler)
+	authMux.HandleFunc("/auth/pair", authH.PairHandler)
+	mux.Handle("/auth/login", authLimiter.Middleware(authMux))
+	mux.Handle("/auth/pair", authLimiter.Middleware(authMux))
+
+	// ── Auth endpoints (require Bearer token) ────────────
+	mux.HandleFunc("/auth/logout", authH.LogoutHandler) // protected by main auth middleware
+
+	// ── Internal endpoints (localhost only) ──────────────
+	internalMux := http.NewServeMux()
+	internalMux.HandleFunc("/internal/qr", qrPage.ServeQRPage)
+	internalMux.HandleFunc("/internal/qr/image", qrPage.ServeQRImage)
+	internalMux.HandleFunc("/internal/status", qrPage.ServeStatus)
+	internalMux.HandleFunc("/auth/sessions", authH.SessionsHandler)
+	mux.Handle("/internal/", middleware.LocalhostOnly(internalMux))
+	mux.Handle("/auth/sessions", middleware.LocalhostOnly(http.HandlerFunc(authH.SessionsHandler)))
+
+	// ── Protected API endpoints ──────────────────────────
 	protectedMux := http.NewServeMux()
 
 	protectedMux.HandleFunc("/audio/volume", handlers.AudioVolumeHandler)
@@ -90,50 +151,80 @@ func main() {
 	protectedMux.HandleFunc("/system/display/off", handlers.SystemDisplayOffHandler)
 	protectedMux.HandleFunc("/system/pin", handlers.HandleChangePIN)
 
-	// 3c. Apply auth middleware ONLY to the protected endpoints
-	mux.Handle("/", middleware.WithAuth(protectedMux))
+	protectedMux.HandleFunc("/auth/logout", authH.LogoutHandler)
 
-	// 4. Create the main server handler with logging and CORS middleware wrapping EVERYTHING
-	var handler http.Handler = middleware.CORSMiddleware(middleware.WithLogging(mux))
+	// Apply auth middleware to protected endpoints
+	authMiddleware := middleware.WithAuth(sessions, authLimiter)
+	mux.Handle("/", authMiddleware(protectedMux))
+
+	// 10. Build handler chain: SecurityHeaders → CORS → RateLimit → Logging → Router
+	var handler http.Handler = mux
+	handler = middleware.WithLogging(handler)
+	handler = generalLimiter.Middleware(handler)
+	handler = middleware.CORSMiddleware(handler)
+	handler = middleware.WithSecurityHeaders(handler)
 
 	server := &http.Server{
-		Addr:    ":" + config.App.Port,
-		Handler: handler,
+		Addr:         ":" + config.App.Port,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
-	// 5. Warn if PIN is not configured
+	// 11. Warn if PIN is not configured
 	if config.App.PIN == "" {
 		slog.Warn("No PIN configured — all authenticated endpoints will return 403. Set PIN or APP_PIN in .env")
 	}
 
-	// 6. Setup quit channel for graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	// 12. Configure the QR page URL for the system tray
+	qrPageURL := fmt.Sprintf("https://localhost:%s/internal/qr", config.App.Port)
 
-	// 7. Start server in a goroutine
-	go func() {
-		slog.Info("PCRemote Server listening on :" + config.App.Port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Failed to start server", "error", err)
-			// Signal quit channel instead of os.Exit to allow graceful cleanup.
-			// This prevents orphaned processes when NSSM restarts the service.
-			quit <- syscall.SIGTERM
-		}
-	}()
+	// 13. Create system tray application
+	trayApp := tray.New(sessions, pairing, config.App.Port, qrPageURL)
 
-	// 8. Wait for interrupt signal to gracefully shut down the server
-	<-quit
+	// 14. Run with system tray as lifecycle manager
+	// The tray's onReady callback starts the HTTPS server.
+	// The tray's onExit callback gracefully shuts it down.
+	trayApp.Run(
+		// onReady: tray is initialized, start the server
+		func() {
+			// Start HTTPS server in a goroutine
+			go func() {
+				slog.Info("PCRemote Server listening",
+					"addr", ":"+config.App.Port,
+					"protocol", "HTTPS",
+					"tls_cert", certFile,
+					"local_ip", localIP,
+				)
+				if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+					slog.Error("Failed to start server", "error", err)
+					os.Exit(1)
+				}
+			}()
 
-	slog.Info("Shutting down server...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		slog.Error("Server forced to shutdown", "error", err)
-	}
-
-	slog.Info("Server exiting")
+			// Also handle OS signals for graceful shutdown
+			go func() {
+				quit := make(chan os.Signal, 1)
+				signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+				<-quit
+				slog.Info("OS signal received, shutting down...")
+				// This triggers the tray's onExit callback
+				// which will call our shutdown function
+				os.Exit(0)
+			}()
+		},
+		// onExit: tray quit clicked or signal received, shutdown server
+		func() {
+			slog.Info("Shutting down server...")
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := server.Shutdown(ctx); err != nil {
+				slog.Error("Server forced to shutdown", "error", err)
+			}
+			slog.Info("Server exiting")
+		},
+	)
 }
 
 func getFallbackLogPath() string {
@@ -146,4 +237,3 @@ func getFallbackLogPath() string {
 	}
 	return "server.log"
 }
-

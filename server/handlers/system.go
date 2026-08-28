@@ -3,7 +3,6 @@ package handlers
 import (
 	"bufio"
 	"bytes"
-	"crypto/subtle"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -57,25 +56,24 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 		NewPIN     string `json:"new_pin"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&req); err != nil {
 		sendJSON(w, http.StatusBadRequest, ErrorBody{Error: "malformed JSON body"})
 		return
 	}
 
-	// 4. Validate current PIN is not empty
+	// 2. Validate current PIN is configured
 	if config.App.PIN == "" {
 		sendJSON(w, http.StatusBadRequest, ErrorBody{Error: "No PIN currently set. Please reinstall or manually set PIN in .env"})
 		return
 	}
 
-	// 2. Validate current_pin matches X-PIN header (constant-time compare)
-	xPin := r.Header.Get("X-PIN")
-	if subtle.ConstantTimeCompare([]byte(req.CurrentPIN), []byte(xPin)) != 1 {
+	// 3. Validate current_pin against stored hash (bcrypt)
+	if !config.ValidatePIN(req.CurrentPIN) {
 		sendJSON(w, http.StatusUnauthorized, ErrorBody{Error: "current PIN incorrect"})
 		return
 	}
 
-	// 3. Validate new_pin: 4-8 chars, digits only
+	// 4. Validate new_pin: 4-8 chars, digits only, different from current
 	if req.NewPIN == req.CurrentPIN {
 		sendJSON(w, http.StatusBadRequest, ErrorBody{Error: "new PIN cannot be same as current PIN"})
 		return
@@ -93,10 +91,18 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 5. Update config.App.PIN in-memory
-	config.App.PIN = req.NewPIN
+	// 5. Hash the new PIN with bcrypt
+	newHash, err := config.HashPIN(req.NewPIN)
+	if err != nil {
+		slog.Error("Failed to hash new PIN", "error", err)
+		sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: "Failed to process new PIN"})
+		return
+	}
 
-	// 6. Write updated .env file (preserve other keys like PORT)
+	// 6. Update config.App.PIN in-memory
+	config.SetPIN(newHash)
+
+	// 7. Write updated .env file (preserve other keys like PORT)
 	envPath := ".env"
 	exePath, err := os.Executable()
 	if err == nil {
@@ -128,7 +134,7 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if pinKeyName != "" {
-			newContent.WriteString(pinKeyName + "=" + req.NewPIN + "\n")
+			newContent.WriteString(pinKeyName + "=" + newHash + "\n")
 			keyFound = true
 		} else {
 			newContent.WriteString(line + "\n")
@@ -143,7 +149,7 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !keyFound {
-		newContent.WriteString("APP_PIN=" + req.NewPIN + "\n")
+		newContent.WriteString("APP_PIN=" + newHash + "\n")
 	}
 
 	// Write to temporary file in the same directory as .env
@@ -171,10 +177,10 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 7. Log success
-	slog.Info("PIN changed successfully")
+	// 8. Log success
+	slog.Info("PIN changed successfully (stored as bcrypt hash)")
 
-	// 8. Return 200 with success message
+	// 9. Return 200 with success message
 	sendJSON(w, http.StatusOK, map[string]string{
 		"status":  "ok",
 		"message": "PIN changed successfully",

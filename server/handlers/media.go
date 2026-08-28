@@ -79,4 +79,3 @@ func MediaStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 	sendJSON(w, http.StatusOK, status)
 }
-

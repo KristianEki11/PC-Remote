@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../models/app_state.dart';
 import '../utils/theme.dart';
 import 'dashboard_screen.dart';
+import 'qr_scan_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  String _versionText = 'v2.2.9';
+  String _versionText = 'v3.0.0';
 
   @override
   void initState() {
@@ -73,11 +74,11 @@ class _LoginScreenState extends State<LoginScreen> {
             MaterialPageRoute(builder: (context) => const DashboardScreen()),
           );
         } else {
-          // Server is online but credentials failed (PIN changed)
+          // Server is online but credentials failed (PIN/session expired)
           await prefs.remove('auth_token');
           setState(() {
             _isLoading = false;
-            _errorMessage = 'PIN telah berubah. Silakan login kembali.';
+            _errorMessage = 'Sesi telah berakhir atau PIN salah. Silakan hubungkan kembali.';
           });
         }
       }
@@ -171,6 +172,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _openQRScanner() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const QRScanScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -210,8 +217,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       // App icon with claymorphic appearance
                       Container(
-                        width: 100,
-                        height: 100,
+                        width: 90,
+                        height: 90,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.surfaceLight,
@@ -219,133 +226,181 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: const Icon(
                           Icons.computer_rounded,
-                          size: 48,
+                          size: 44,
                           color: AppColors.primary,
                         ),
                       ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'PC Remote',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Kontrol PC dari genggaman tangan',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-                    // IP Address Input
-                    TextField(
-                      controller: _ipController,
-                      keyboardType: TextInputType.url,
-                      decoration: const InputDecoration(
-                        labelText: 'IP Address / URL',
-                        hintText: '192.168.1.x',
-                        prefixIcon: Icon(Icons.wifi, color: AppColors.textSecondary),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // PIN Input
-                    TextField(
-                      controller: _pinController,
-                      obscureText: true,
-                      keyboardType: TextInputType.number,
-                      maxLength: 8,
-                      decoration: const InputDecoration(
-                        labelText: 'PIN',
-                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary),
-                        counterText: '', // hide character counter
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Error message
-                    if (_errorMessage != null) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'PC Remote',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          color: AppColors.textPrimary,
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline, color: AppColors.error, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: AppColors.error, fontSize: 13),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Kontrol PC dari genggaman tangan',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 36),
+
+                      // ── Primary Action: Scan QR Code Button ─────────
+                      if (!kIsWeb) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: AppGradients.primaryButton,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: AppClays.button(),
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: _isLoading ? null : _openQRScanner,
+                              icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 24),
+                              label: const Text(
+                                'Pindai QR Code di PC',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Divider with text
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              child: Text(
+                                'atau masukkan manual',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
                           ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // ── Secondary Action: Manual IP & PIN Input ─────
+                      TextField(
+                        controller: _ipController,
+                        keyboardType: TextInputType.url,
+                        decoration: const InputDecoration(
+                          labelText: 'IP Address / URL',
+                          hintText: '192.168.1.x',
+                          prefixIcon: Icon(Icons.wifi, color: AppColors.textSecondary),
                         ),
                       ),
                       const SizedBox(height: 16),
-                    ],
-                    // Connect Button with claymorphic design
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: _isLoading ? null : AppGradients.primaryButton,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: _isLoading ? [] : AppClays.button(),
+                      TextField(
+                        controller: _pinController,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 8,
+                        decoration: const InputDecoration(
+                          labelText: 'PIN',
+                          prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                          counterText: '',
                         ),
-                        child: ElevatedButton(
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Error message display
+                      if (_errorMessage != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(color: AppColors.error, fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Manual Connect Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton(
                           onPressed: _isLoading ? null : _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            side: BorderSide(color: AppColors.primary.withValues(alpha: 0.6), width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                           child: _isLoading
                               ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
+                                  width: 20,
+                                  height: 20,
                                   child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
+                                    color: AppColors.primary,
+                                    strokeWidth: 2,
                                   ),
                                 )
                               : const Text(
-                                  'Hubungkan',
+                                  'Hubungkan Manual',
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                    // Version text
-                    Text(
-                      _versionText,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary.withValues(alpha: 0.85),
+                      const SizedBox(height: 32),
+
+                      // Version text
+                      Text(
+                        _versionText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.85),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

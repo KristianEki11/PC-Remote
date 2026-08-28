@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"pcremote-server/auth"
 	"pcremote-server/config"
 	"pcremote-server/middleware"
 )
@@ -34,23 +35,32 @@ func TestChangePIN_Success(t *testing.T) {
 	HandleChangePIN(rr, req)
 
 	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d. Body: %s", rr.Code, rr.Body.String())
-	}
-	if !strings.Contains(rr.Body.String(), "PIN changed successfully") {
-		t.Errorf("expected body to contain success message, got %q", rr.Body.String())
-	}
-	if config.App.PIN != "5678" {
-		t.Errorf("expected config.App.PIN to be 5678, got %q", config.App.PIN)
+		t.Errorf("expected 200 OK, got %d. Body: %s", rr.Code, rr.Body.String())
 	}
 
-	// Verify .env file updated
+	// In-memory update check
+	if config.App.PIN == "5678" || config.App.PIN == "" {
+		t.Errorf("expected config.App.PIN to be a bcrypt hash, got %q", config.App.PIN)
+	}
+
+	// Verify the hash is actually valid for the new PIN
+	if !config.ValidatePIN("5678") {
+		t.Errorf("expected new PIN '5678' to validate against the new stored hash")
+	}
+
+	// .env file check
 	envBytes, err := os.ReadFile(".env")
 	if err != nil {
 		t.Fatalf("failed to read .env: %v", err)
 	}
-	envStr := string(envBytes)
-	if !strings.Contains(envStr, "PIN=5678") {
-		t.Errorf("expected .env to contain PIN=5678, got: %q", envStr)
+	envContent := string(envBytes)
+	
+	// Check that it contains PIN= and doesn't contain plaintext 5678
+	if !strings.Contains(envContent, "PIN=$2a$") && !strings.Contains(envContent, "PIN=$2b$") {
+		t.Errorf("expected .env to contain bcrypt hash, got: %q", envContent)
+	}
+	if !strings.Contains(envContent, "PORT=8000") {
+		t.Errorf("expected .env to preserve PORT=8000, got: %q", envContent)
 	}
 }
 
@@ -137,7 +147,10 @@ func TestChangePIN_MissingAuthHeader(t *testing.T) {
 	defer setTestPIN("1234")()
 	defer setupTestEnv(t, "PIN=1234\n")()
 
-	handler := middleware.WithAuth(http.HandlerFunc(HandleChangePIN))
+	// Import "pcremote-server/auth" will be added by goimports
+	sm := auth.NewSessionManager()
+	rl := middleware.NewAuthRateLimiter()
+	handler := middleware.WithAuth(sm, rl)(http.HandlerFunc(HandleChangePIN))
 
 	body := `{"current_pin":"1234","new_pin":"5678"}`
 	req := httptest.NewRequest("POST", "/system/pin", strings.NewReader(body))

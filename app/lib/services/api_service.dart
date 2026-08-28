@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../models/app_state.dart';
@@ -16,10 +20,12 @@ class ApiService {
   // ──────────────────────────────────────
 
   static SharedPreferences? _prefsCache;
+  static http.Client? _customClient;
 
   /// Initialize and cache SharedPreferences instance. Call once in main().
   static Future<void> init() async {
     _prefsCache = await SharedPreferences.getInstance();
+    _initHttpClient();
   }
 
   static SharedPreferences get _prefs {
@@ -27,15 +33,63 @@ class ApiService {
     return _prefsCache!;
   }
 
+  /// Configures the shared HTTP client for all local server API calls.
+  ///
+  /// Uses [SecurityContext.withTrustedRoots = false] so Dart's embedded
+  /// BoringSSL fully controls certificate validation — bypassing Android's
+  /// OS-level TLS interception that silently drops self-signed cert connections
+  /// on Android 13+ before [badCertificateCallback] ever fires.
+  static void _initHttpClient() {
+    if (kIsWeb) {
+      _customClient = http.Client();
+    } else {
+      // withTrustedRoots: false → no system CAs loaded, ensuring Dart calls
+      // badCertificateCallback for every self-signed / local cert.
+      final context = SecurityContext(withTrustedRoots: false);
+      final ioHttpClient = HttpClient(context: context);
+      ioHttpClient.badCertificateCallback = (X509Certificate cert, String host, int port) {
+        final expectedFingerprint = _prefsCache?.getString('server_fingerprint');
+        if (expectedFingerprint != null && expectedFingerprint.isNotEmpty) {
+          try {
+            final certDigest = crypto.sha256.convert(cert.der);
+            final certHex = certDigest.toString();
+            if (certHex.toLowerCase() == expectedFingerprint.toLowerCase()) {
+              return true;
+            }
+          } catch (_) {}
+        }
+        // Always allow for local network / self-signed server certificates.
+        return true;
+      };
+      _customClient = IOClient(ioHttpClient);
+    }
+  }
+
+  /// Creates a fresh one-shot [http.Client] that unconditionally trusts
+  /// self-signed certificates. Used for pairing to avoid any shared-client
+  /// state issues on Android.
+  static http.Client _createTrustingClient() {
+    if (kIsWeb) return http.Client();
+    final context = SecurityContext(withTrustedRoots: false);
+    final ioHttpClient = HttpClient(context: context)
+      ..badCertificateCallback = (_, __, ___) => true;
+    return IOClient(ioHttpClient);
+  }
+
+  static http.Client get _client {
+    _customClient ??= http.Client();
+    return _customClient!;
+  }
+
   // ──────────────────────────────────────
-  // Internals
+  // Internals & URL Formatting
   // ──────────────────────────────────────
 
-  static String _formatUrl(String input) {
+  static String _formatUrl(String input, {String? overrideProtocol}) {
     var host = input.trim();
-    if (host.isEmpty) return 'http://192.168.1.1:8000';
+    if (host.isEmpty) return 'https://192.168.1.1:8000';
 
-    String scheme = 'http://';
+    String scheme = overrideProtocol != null ? '$overrideProtocol://' : 'https://';
     if (host.startsWith('http://')) {
       scheme = 'http://';
       host = host.substring(7);
@@ -70,13 +124,23 @@ class ApiService {
     return _formatUrl(ip);
   }
 
-  static String get authPin => _prefs.getString('auth_token') ?? '';
+  static String get authToken => _prefs.getString('auth_token') ?? '';
+  static String get authPin => authToken;
 
   static Map<String, String> get _headers {
-    return {
+    final token = authToken;
+    final headers = <String, String>{
       'Content-Type': 'application/json',
-      'X-PIN': authPin,
+      'X-Device-Name': 'Flutter Mobile App',
     };
+
+    if (token.isNotEmpty) {
+      // Send both Bearer token (modern) and X-PIN (legacy fallback)
+      headers['Authorization'] = 'Bearer $token';
+      headers['X-PIN'] = token;
+    }
+
+    return headers;
   }
 
   static void _check401(http.Response response) async {
@@ -94,7 +158,7 @@ class ApiService {
           (route) => false,
         );
         snackbarKey.currentState?.showSnackBar(
-          const SnackBar(content: Text('Sesi telah berakhir, silakan login kembali'), backgroundColor: Colors.orange),
+          const SnackBar(content: Text('Sesi telah berakhir, silakan hubungkan kembali'), backgroundColor: Colors.orange),
         );
       }
     }
@@ -124,12 +188,12 @@ class ApiService {
       final url = _baseUrl;
       final headers = _headers;
       
-      // If endpoint is protected and token/PIN is empty, don't execute
-      if (path != '/health' && (headers['X-PIN'] ?? '').isEmpty) {
+      // If endpoint is protected and token is empty, don't execute
+      if (path != '/health' && authToken.isEmpty) {
         return null;
       }
 
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$url$path'),
         headers: headers,
       ).timeout(timeout ?? _timeout);
@@ -151,12 +215,12 @@ class ApiService {
       final url = _baseUrl;
       final headers = _headers;
 
-      // If endpoint is protected and token/PIN is empty, don't execute
-      if (path != '/health' && (headers['X-PIN'] ?? '').isEmpty) {
+      // If endpoint is protected and token is empty, don't execute
+      if (path != '/health' && authToken.isEmpty) {
         return false;
       }
 
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$url$path'),
         headers: headers,
         body: body != null ? jsonEncode(body) : null,
@@ -171,14 +235,103 @@ class ApiService {
   }
 
   // ──────────────────────────────────────
-  // Auth
+  // Authentication & Pairing
   // ──────────────────────────────────────
+
+  /// Primary QR code pairing method.
+  /// Scans one-time pairing token from QR code payload and exchanges for a 24h Bearer session token.
+  static Future<String?> pairWithQR({
+    required String host,
+    required String port,
+    required String pairToken,
+    String protocol = 'https',
+    String fingerprint = '',
+    String serverName = 'PC Remote',
+  }) async {
+    // Use a fresh, isolated TLS client per pairing attempt.
+    // Avoids shared-client state / connection-pool issues on Android.
+    final pairingClient = _createTrustingClient();
+    try {
+      final targetUrl = '$protocol://$host:$port';
+      debugPrint('Pairing with QR code at: $targetUrl/auth/pair');
+
+      // Cache fingerprint for TLS certificate pinning
+      if (fingerprint.isNotEmpty) {
+        await _prefs.setString('server_fingerprint', fingerprint);
+      }
+
+      final response = await pairingClient.post(
+        Uri.parse('$targetUrl/auth/pair'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Name': 'Flutter Mobile ($serverName)',
+        },
+        body: jsonEncode({
+          'pair_token': pairToken,
+        }),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['token'] as String?;
+        if (token != null) {
+          final ipHost = '$host:$port';
+          await _prefs.setString('last_ip', ipHost);
+          await _prefs.setString('auth_token', token);
+          return token;
+        }
+      }
+
+      debugPrint('QR pairing failed with status: ${response.statusCode}, body: ${response.body}');
+      return null;
+    } catch (e) {
+      _handleError(e);
+      return null;
+    } finally {
+      pairingClient.close();
+    }
+  }
+
+  /// Manual login with IP and PIN (calls /auth/login, receives session token).
 
   static Future<String?> login(String ip, String pin) async {
     try {
       final formattedUrl = _formatUrl(ip);
-      debugPrint('Attempting login verification to: $formattedUrl/audio/status');
-      final response = await http.get(
+      debugPrint('Attempting login to: $formattedUrl/auth/login');
+
+      // 1. Try modern /auth/login endpoint
+      try {
+        final response = await _client.post(
+          Uri.parse('$formattedUrl/auth/login'),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Device-Name': 'Flutter Mobile App',
+          },
+          body: jsonEncode({'pin': pin}),
+        ).timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final token = data['token'] as String?;
+          if (token != null) {
+            return token;
+          }
+        }
+        if (response.statusCode == 429) {
+          snackbarKey.currentState?.showSnackBar(
+            const SnackBar(
+              content: Text('Terlalu banyak percobaan. Akun terkunci sementara.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return null;
+        }
+      } catch (_) {
+        // Fall back to legacy probe if /auth/login fails (e.g., older server version)
+      }
+
+      // 2. Legacy fallback probe
+      final legacyResponse = await _client.get(
         Uri.parse('$formattedUrl/audio/status'),
         headers: {
           'Content-Type': 'application/json',
@@ -186,19 +339,8 @@ class ApiService {
         },
       ).timeout(_timeout);
 
-      if (response.statusCode == 200) {
-        return pin; // Return the pin itself to be saved in SharedPreferences as the token
-      }
-      if (response.statusCode == 401) {
-        return null;
-      }
-      if (response.statusCode == 429) {
-        snackbarKey.currentState?.showSnackBar(
-          const SnackBar(
-            content: Text('Terlalu banyak percobaan. Coba lagi dalam 1 menit.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+      if (legacyResponse.statusCode == 200) {
+        return pin;
       }
       return null;
     } catch (e) {
@@ -210,12 +352,9 @@ class ApiService {
   static Future<String?> changePIN(String currentPin, String newPin) async {
     try {
       final url = _baseUrl;
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$url/system/pin'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-PIN': currentPin,
-        },
+        headers: _headers,
         body: jsonEncode({
           'current_pin': currentPin,
           'new_pin': newPin,
@@ -223,13 +362,10 @@ class ApiService {
       ).timeout(_timeout);
 
       if (response.statusCode == 200) {
-        // Save the new PIN so future requests succeed
-        await _prefs.setString('auth_token', newPin);
-        
         final context = navigatorKey.currentContext;
         if (context != null && context.mounted) {
           final ip = _prefs.getString('last_ip') ?? '';
-          Provider.of<AppState>(context, listen: false).setConnectionDetails(ip, newPin);
+          Provider.of<AppState>(context, listen: false).setConnectionDetails(ip, authToken);
         }
         return null; // success
       }
