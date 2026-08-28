@@ -24,7 +24,7 @@ import (
 func main() {
 	// 0. Ensure working directory is the executable's directory.
 	if exePath, err := os.Executable(); err == nil {
-		os.Chdir(filepath.Dir(exePath))
+		_ = os.Chdir(filepath.Dir(exePath))
 	}
 
 	// 1. Load config (auto-migrates plaintext PIN to bcrypt)
@@ -32,25 +32,18 @@ func main() {
 
 	// 2. Setup structured logging
 	logPath := filepath.Join("logs", "server.log")
-	if err := os.MkdirAll("logs", 0755); err != nil {
-		logPath = getFallbackLogPath()
-	} else {
-		testFile := filepath.Join("logs", "write_test.tmp")
-		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-			logPath = getFallbackLogPath()
-		} else {
-			os.Remove(testFile)
-		}
+	_ = os.MkdirAll("logs", 0755)
+
+	var logWriter io.Writer = os.Stdout
+	if logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err == nil {
+		defer logFile.Close()
+		logWriter = io.MultiWriter(os.Stdout, logFile)
+	} else if fbFile, err := os.OpenFile(getFallbackLogPath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err == nil {
+		defer fbFile.Close()
+		logWriter = io.MultiWriter(os.Stdout, fbFile)
 	}
 
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("Failed to open log file: %v", err)
-	}
-	defer logFile.Close()
-
-	multiWriter := io.MultiWriter(os.Stdout, logFile)
-	logger := slog.New(slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{
+	logger := slog.New(slog.NewJSONHandler(logWriter, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
@@ -62,7 +55,7 @@ func main() {
 		log.Fatalf("TLS setup failed: %v", err)
 	}
 
-	// 4. Initialize session manager (max 1 device)
+	// 4. Initialize session manager (max 1 device, persistent)
 	sessions := auth.NewSessionManager()
 	defer sessions.Stop()
 
@@ -155,7 +148,13 @@ func main() {
 
 	// Apply auth middleware to protected endpoints
 	authMiddleware := middleware.WithAuth(sessions, authLimiter)
-	mux.Handle("/", authMiddleware(protectedMux))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/internal/qr", http.StatusFound)
+			return
+		}
+		authMiddleware(protectedMux).ServeHTTP(w, r)
+	})
 
 	// 10. Build handler chain: SecurityHeaders → CORS → RateLimit → Logging → Router
 	var handler http.Handler = mux
@@ -192,7 +191,7 @@ func main() {
 			"local_ip", localIP,
 		)
 		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
-			slog.Error("Failed to start server", "error", err)
+			slog.Error("Server listen failed", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -212,22 +211,22 @@ func main() {
 		}
 	}()
 
-	// 16. Run system tray in goroutine (or main thread)
-	go func() {
-		trayApp.Run(
-			nil,
-			func() {
-				slog.Info("System tray requested exit")
-				select {
-				case <-shutdownCh:
-				default:
-					close(shutdownCh)
-				}
-			},
-		)
-	}()
+	// 16. Run system tray
+	// If tray runs on desktop, user can quit via tray menu.
+	// If tray fails to initialize (headless/service), onExit without explicitQuit won't close shutdownCh.
+	trayApp.Run(
+		nil,
+		func() {
+			slog.Info("Quit requested from system tray")
+			select {
+			case <-shutdownCh:
+			default:
+				close(shutdownCh)
+			}
+		},
+	)
 
-	// Wait indefinitely for explicit shutdown signal (Ctrl+C, taskkill, or Tray Quit)
+	// 17. Wait indefinitely for explicit shutdown signal (Ctrl+C, taskkill, or Tray Quit)
 	<-shutdownCh
 	slog.Info("Shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
