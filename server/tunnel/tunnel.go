@@ -205,12 +205,14 @@ func (tm *TunnelManager) findOrDownloadBinary() (string, error) {
 		"cloudflared.exe",
 		"cloudflared",
 		filepath.Join("dist", "cloudflared.exe"),
+		`C:\Program Files\PCRemote\cloudflared.exe`,
 	}
 
 	if exePath, err := os.Executable(); err == nil {
 		candidates = append(candidates,
 			filepath.Join(filepath.Dir(exePath), "cloudflared.exe"),
 			filepath.Join(filepath.Dir(exePath), "cloudflared"),
+			filepath.Join(filepath.Dir(exePath), "dist", "cloudflared.exe"),
 		)
 	}
 
