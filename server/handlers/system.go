@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"pcremote-server/config"
 	winapi "pcremote-server/windows"
@@ -169,12 +170,21 @@ func HandleChangePIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ATOMIC RENAME
+	// ATOMIC RENAME with Windows fallback
 	if err := os.Rename(tmpPath, envPath); err != nil {
-		slog.Error("PIN change failed: Failed to rename temp file to env", "error", err, "from", tmpPath, "to", envPath)
-		os.Remove(tmpPath)
-		sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: "Failed to save PIN to file"})
-		return
+		// On Windows, rename over an existing file can fail if temporarily locked.
+		// Fall back to remove + rename with short retry.
+		_ = os.Remove(envPath)
+		if retryErr := os.Rename(tmpPath, envPath); retryErr != nil {
+			time.Sleep(10 * time.Millisecond)
+			_ = os.Remove(envPath)
+			if retryErr2 := os.Rename(tmpPath, envPath); retryErr2 != nil {
+				slog.Error("PIN change failed: Failed to rename temp file to env", "error", retryErr2, "from", tmpPath, "to", envPath)
+				os.Remove(tmpPath)
+				sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: "Failed to save PIN to file"})
+				return
+			}
+		}
 	}
 
 	// 8. Log success
