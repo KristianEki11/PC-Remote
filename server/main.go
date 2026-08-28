@@ -183,48 +183,59 @@ func main() {
 	// 13. Create system tray application
 	trayApp := tray.New(sessions, pairing, config.App.Port, qrPageURL)
 
-	// 14. Run with system tray as lifecycle manager
-	// The tray's onReady callback starts the HTTPS server.
-	// The tray's onExit callback gracefully shuts it down.
-	trayApp.Run(
-		// onReady: tray is initialized, start the server
-		func() {
-			// Start HTTPS server in a goroutine
-			go func() {
-				slog.Info("PCRemote Server listening",
-					"addr", ":"+config.App.Port,
-					"protocol", "HTTPS",
-					"tls_cert", certFile,
-					"local_ip", localIP,
-				)
-				if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
-					slog.Error("Failed to start server", "error", err)
-					os.Exit(1)
-				}
-			}()
+	// 14. Start HTTPS server immediately in a background goroutine
+	go func() {
+		slog.Info("PCRemote Server listening",
+			"addr", ":"+config.App.Port,
+			"protocol", "HTTPS",
+			"tls_cert", certFile,
+			"local_ip", localIP,
+		)
+		if err := server.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+			slog.Error("Failed to start server", "error", err)
+			os.Exit(1)
+		}
+	}()
 
-			// Also handle OS signals for graceful shutdown
-			go func() {
-				quit := make(chan os.Signal, 1)
-				signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-				<-quit
-				slog.Info("OS signal received, shutting down...")
-				// This triggers the tray's onExit callback
-				// which will call our shutdown function
-				os.Exit(0)
-			}()
-		},
-		// onExit: tray quit clicked or signal received, shutdown server
+	// 15. Graceful shutdown coordination
+	shutdownCh := make(chan struct{})
+
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+		slog.Info("OS signal received, shutting down...")
+		select {
+		case <-shutdownCh:
+		default:
+			close(shutdownCh)
+		}
+	}()
+
+	// 16. Run system tray
+	// If tray runs on desktop, user can quit via tray menu.
+	// If tray cannot initialize (e.g. headless/service), server continues running.
+	trayApp.Run(
+		nil,
 		func() {
-			slog.Info("Shutting down server...")
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := server.Shutdown(ctx); err != nil {
-				slog.Error("Server forced to shutdown", "error", err)
+			slog.Info("System tray requested exit")
+			select {
+			case <-shutdownCh:
+			default:
+				close(shutdownCh)
 			}
-			slog.Info("Server exiting")
 		},
 	)
+
+	// Wait for explicit shutdown signal
+	<-shutdownCh
+	slog.Info("Shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
+	}
+	slog.Info("Server exited cleanly")
 }
 
 func getFallbackLogPath() string {

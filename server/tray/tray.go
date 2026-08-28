@@ -1,6 +1,7 @@
 package tray
 
 import (
+	_ "embed"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,12 +15,16 @@ import (
 	"pcremote-server/auth"
 )
 
+//go:embed favicon.ico
+var embeddedFavicon []byte
+
 // TrayApp manages the system tray icon, menu, and event handling.
 type TrayApp struct {
-	Sessions  *auth.SessionManager
-	Pairing   *auth.PairingManager
-	Port      string
-	QRPageURL string
+	Sessions     *auth.SessionManager
+	Pairing      *auth.PairingManager
+	Port         string
+	QRPageURL    string
+	explicitQuit bool
 
 	mStatus *systray.MenuItem
 	stopCh  chan struct{}
@@ -47,7 +52,7 @@ func (t *TrayApp) Run(onServerReady func(), onServerExit func()) {
 		}
 	}, func() {
 		close(t.stopCh)
-		if onServerExit != nil {
+		if t.explicitQuit && onServerExit != nil {
 			onServerExit()
 		}
 	})
@@ -91,6 +96,7 @@ func (t *TrayApp) onReady() {
 				t.openQRPage()
 			case <-mQuit.ClickedCh:
 				slog.Info("Quit requested from system tray")
+				t.explicitQuit = true
 				systray.Quit()
 			case <-t.stopCh:
 				return
@@ -141,26 +147,24 @@ func (t *TrayApp) openQRPage() {
 	}
 }
 
-// loadIcon loads the tray icon from the filesystem.
-// Tries the executable directory first, then the current working directory.
+// loadIcon returns the embedded icon, or falls back to filesystem.
 func loadIcon() []byte {
-	paths := []string{}
+	if len(embeddedFavicon) > 0 {
+		return embeddedFavicon
+	}
 
-	// Try executable directory
+	paths := []string{}
 	if exePath, err := os.Executable(); err == nil {
 		paths = append(paths, filepath.Join(filepath.Dir(exePath), "favicon.ico"))
 	}
-
-	// Try current working directory
-	paths = append(paths, "favicon.ico")
+	paths = append(paths, "favicon.ico", "server/favicon.ico")
 
 	for _, p := range paths {
-		data, err := os.ReadFile(p)
-		if err == nil {
+		if data, err := os.ReadFile(p); err == nil {
 			return data
 		}
 	}
 
-	slog.Warn("System tray icon not found, using default")
+	slog.Warn("System tray icon not found")
 	return nil
 }
