@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../models/app_state.dart';
 import '../models/media_state.dart';
@@ -115,11 +114,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   Future<void> _logout() async {
     HapticFeedback.mediumImpact();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    await ApiService.logout();
     
     if (!mounted) return;
     Provider.of<AppState>(context, listen: false).clear();
+    try {
+      Provider.of<MediaState>(context, listen: false).stopPolling();
+    } catch (_) {}
     
     Navigator.pushReplacement(
       context,

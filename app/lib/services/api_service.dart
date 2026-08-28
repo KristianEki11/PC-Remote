@@ -327,6 +327,15 @@ class ApiService {
     }
   }
 
+  /// Logs out the device by notifying the server to revoke the session,
+  /// then clears all local authentication tokens and state.
+  static Future<void> logout() async {
+    try {
+      await _post('/auth/logout', showSnackBar: false);
+    } catch (_) {}
+    await _prefs.remove('auth_token');
+  }
+
   /// Manual login with IP and PIN (calls /auth/login, receives session token).
 
   static Future<String?> login(String ip, String pin) async {
