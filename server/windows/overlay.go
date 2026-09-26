@@ -36,7 +36,7 @@ func showBlackOverlayThread() {
 		LpszClassName: className,
 		LpfnWndProc:   syscall.NewCallback(overlayWndProc),
 		HbrBackground: win.HBRUSH(win.GetStockObject(win.BLACK_BRUSH)),
-		HCursor:       win.LoadCursor(0, (*uint16)(unsafe.Pointer(uintptr(win.IDC_ARROW)))),
+		HCursor:       0,
 	}
 
 	win.RegisterClassEx(&wc)
@@ -101,6 +101,9 @@ func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	case win.WM_KEYDOWN, win.WM_LBUTTONDOWN, win.WM_RBUTTONDOWN, win.WM_MBUTTONDOWN:
 		win.PostMessage(hwnd, win.WM_CLOSE, 0, 0)
 		return 0
+	case win.WM_SETCURSOR:
+		win.SetCursor(0)
+		return 1
 	case win.WM_DESTROY:
 		win.PostQuitMessage(0)
 		return 0
