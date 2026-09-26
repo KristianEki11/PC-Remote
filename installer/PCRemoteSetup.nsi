@@ -16,7 +16,6 @@ Var PIN
 
 ; Pages
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "license.txt"
 Page custom CreatePINPage ValidatePINPage
 !insertmacro MUI_PAGE_INSTFILES
 
