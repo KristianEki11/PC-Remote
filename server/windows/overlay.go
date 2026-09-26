@@ -5,48 +5,107 @@ import (
 	"runtime"
 	"syscall"
 	"unsafe"
+
 	"github.com/lxn/win"
 )
 
 var (
-    overlayHwnd win.HWND
-    isOverlayRunning bool
-    transparentCursor win.HCURSOR
+	overlayHwnd      win.HWND
+	isOverlayRunning bool
 )
 
-// ShowBlackOverlay opens a full-screen black window to simulate display off.
-func ShowBlackOverlay() {
-    if isOverlayRunning {
-        return
-    }
-    isOverlayRunning = true
-    go showBlackOverlayThread()
+// Win32 cursor type IDs for SetSystemCursor
+const (
+	ocrNormal      = 32512
+	ocrIbeam       = 32513
+	ocrWait        = 32514
+	ocrCross       = 32515
+	ocrUp          = 32516
+	ocrSizeNWSE    = 32642
+	ocrSizeNESW    = 32643
+	ocrSizeWE      = 32644
+	ocrSizeNS      = 32645
+	ocrSizeAll     = 32646
+	ocrNo          = 32648
+	ocrHand        = 32649
+	ocrAppStarting = 32650
+	spiSetCursors  = 0x0057
+)
+
+var allCursorIDs = []uintptr{
+	ocrNormal, ocrIbeam, ocrWait, ocrCross, ocrUp,
+	ocrSizeNWSE, ocrSizeNESW, ocrSizeWE, ocrSizeNS, ocrSizeAll,
+	ocrNo, ocrHand, ocrAppStarting,
 }
 
-// showBlackOverlayThread must run on its own locked thread because it runs a message loop.
-func showBlackOverlayThread() {
-    runtime.LockOSThread()
-    defer runtime.UnlockOSThread()
-    
-	hInstance := win.GetModuleHandle(nil)
-	className := syscall.StringToUTF16Ptr("PCRemoteBlackOverlayClass")
+var (
+	user32                   = syscall.NewLazyDLL("user32.dll")
+	procCreateCursor         = user32.NewProc("CreateCursor")
+	procSetSystemCursor      = user32.NewProc("SetSystemCursor")
+	procSystemParametersInfo = user32.NewProc("SystemParametersInfoW")
+	procCopyCursor           = user32.NewProc("CopyIcon") // CopyCursor is a C macro for CopyIcon
+)
 
-	// Create invisible transparent cursor
-	andMask := make([]byte, 128)
+// createBlankCursor creates a fully transparent 32x32 cursor in memory.
+func createBlankCursor() win.HCURSOR {
+	andMask := make([]byte, 128) // 32x32 / 8 = 128 bytes
 	for i := range andMask {
-		andMask[i] = 0xFF
+		andMask[i] = 0xFF // AND mask: all 1s = transparent
 	}
-	xorMask := make([]byte, 128)
-	user32 := syscall.NewLazyDLL("user32.dll")
-	procCreateCursor := user32.NewProc("CreateCursor")
-	retCursor, _, _ := procCreateCursor.Call(
-		uintptr(hInstance),
-		0, 0,
-		32, 32,
+	xorMask := make([]byte, 128) // XOR mask: all 0s = no inversion
+
+	ret, _, _ := procCreateCursor.Call(
+		0, // hInstance (0 is fine for in-memory cursors)
+		0, 0, // hotspot x, y
+		32, 32, // width, height
 		uintptr(unsafe.Pointer(&andMask[0])),
 		uintptr(unsafe.Pointer(&xorMask[0])),
 	)
-	transparentCursor = win.HCURSOR(retCursor)
+	return win.HCURSOR(ret)
+}
+
+// hideSystemCursors replaces ALL system cursor types with a blank cursor.
+// This works system-wide regardless of which window has focus.
+func hideSystemCursors() {
+	blankCursor := createBlankCursor()
+	if blankCursor == 0 {
+		slog.Error("Failed to create blank cursor")
+		return
+	}
+
+	for _, id := range allCursorIDs {
+		// SetSystemCursor destroys the cursor handle passed to it,
+		// so we must create a fresh copy for each call.
+		copied, _, _ := procCopyCursor.Call(uintptr(blankCursor))
+		if copied != 0 {
+			procSetSystemCursor.Call(copied, id)
+		}
+	}
+	slog.Info("System cursors hidden (all replaced with blank)")
+}
+
+// restoreSystemCursors reloads the default cursor scheme from the registry.
+func restoreSystemCursors() {
+	procSystemParametersInfo.Call(spiSetCursors, 0, 0, 0)
+	slog.Info("System cursors restored")
+}
+
+// ShowBlackOverlay opens a full-screen black window to simulate display off.
+func ShowBlackOverlay() {
+	if isOverlayRunning {
+		return
+	}
+	isOverlayRunning = true
+	go showBlackOverlayThread()
+}
+
+// showBlackOverlayThread must run on its own OS-locked thread for the message loop.
+func showBlackOverlayThread() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	hInstance := win.GetModuleHandle(nil)
+	className := syscall.StringToUTF16Ptr("PCRemoteBlackOverlayClass")
 
 	wc := win.WNDCLASSEX{
 		CbSize:        uint32(unsafe.Sizeof(win.WNDCLASSEX{})),
@@ -54,7 +113,6 @@ func showBlackOverlayThread() {
 		LpszClassName: className,
 		LpfnWndProc:   syscall.NewCallback(overlayWndProc),
 		HbrBackground: win.HBRUSH(win.GetStockObject(win.BLACK_BRUSH)),
-		HCursor:       transparentCursor,
 	}
 
 	win.RegisterClassEx(&wc)
@@ -75,20 +133,14 @@ func showBlackOverlayThread() {
 
 	if overlayHwnd == 0 {
 		slog.Error("Failed to create overlay window")
-        isOverlayRunning = false
+		isOverlayRunning = false
 		return
 	}
 
-	win.SetForegroundWindow(overlayHwnd)
-	win.SetFocus(overlayHwnd)
-	win.SetCapture(overlayHwnd)
+	// Hide ALL system cursors (system-wide, works even without focus)
+	hideSystemCursors()
 
-	// Fallback: move the physical cursor off-screen to the bottom right
-	win.SetCursorPos(w, h)
-
-	slog.Info("Native Go Overlay window created")
-
-    
+	slog.Info("Native overlay window created, cursors hidden")
 
 	var msg win.MSG
 	for win.GetMessage(&msg, 0, 0, 0) != 0 {
@@ -96,10 +148,11 @@ func showBlackOverlayThread() {
 		win.DispatchMessage(&msg)
 	}
 
-    
+	// Restore cursors when overlay closes
+	restoreSystemCursors()
 
-    isOverlayRunning = false
-    overlayHwnd = 0
+	isOverlayRunning = false
+	overlayHwnd = 0
 }
 
 func closeOverlay() {
@@ -110,11 +163,7 @@ func closeOverlay() {
 
 func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
-	case win.WM_SETCURSOR:
-		win.SetCursor(transparentCursor)
-		return 1
 	case win.WM_KEYDOWN, win.WM_LBUTTONDOWN, win.WM_RBUTTONDOWN, win.WM_MBUTTONDOWN:
-		win.ReleaseCapture()
 		win.PostMessage(hwnd, win.WM_CLOSE, 0, 0)
 		return 0
 	case win.WM_DESTROY:
@@ -123,6 +172,3 @@ func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	}
 	return win.DefWindowProc(hwnd, msg, wParam, lParam)
 }
-
-
-
