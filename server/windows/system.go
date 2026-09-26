@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -209,38 +208,18 @@ func monitorDisplayState() {
 }
 
 // TurnOffDisplay turns off the monitor without locking or sleeping the PC.
-// It uses the Win32 SendMessage(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, 2) API,
-// executed inside the active user session (via WTS) so the display actually turns off
-// even when the server runs as a Windows Service / SYSTEM account.
-// The PC remains fully awake — only the backlight is cut.
+// It opens a full-screen black window to simulate display off.
 func (RealAPI) TurnOffDisplay() error {
 	displayMutex.Lock()
 	defer displayMutex.Unlock()
 
-	// Get executable directory
-	exePath, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("failed to get executable path: %w", err)
-	}
-	exeDir := filepath.Dir(exePath)
-	screenOffPath := filepath.Join(exeDir, "ScreenOff.exe")
-
-	if _, err := os.Stat(screenOffPath); os.IsNotExist(err) {
-		slog.Error("ScreenOff.exe not found", "path", screenOffPath)
-		return fmt.Errorf("ScreenOff.exe not found")
-	}
-
 	// Set system keep-awake state before turning off display
 	setKeepAwake(true)
 
-	// Execute ScreenOff.exe
-	if runErr := runInUserSessionStart(screenOffPath); runErr != nil {
-		slog.Error("Failed to run ScreenOff.exe in user session", "error", runErr)
-		setKeepAwake(false) // Clean up keep-awake on failure
-		return runErr
-	}
+	// Launch native black overlay in this process
+	ShowBlackOverlay()
 
-	slog.Info("Display off triggered asynchronously using ScreenOff.exe")
+	slog.Info("Native display off (black overlay) triggered")
 
 	// Start background monitoring if not already monitoring
 	if !isMonitoring {
@@ -274,3 +253,4 @@ func (RealAPI) OpenBrowser(url string) error {
 func hasHTTPPrefix(url string) bool {
 	return len(url) > 7 && (url[:7] == "http://" || (len(url) > 8 && url[:8] == "https://"))
 }
+
