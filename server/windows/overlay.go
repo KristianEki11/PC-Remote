@@ -47,7 +47,7 @@ func showBlackOverlayThread() {
 	h := win.GetSystemMetrics(win.SM_CYVIRTUALSCREEN)
 
 	overlayHwnd = win.CreateWindowEx(
-		win.WS_EX_TOPMOST|win.WS_EX_TOOLWINDOW|win.WS_EX_NOACTIVATE,
+		win.WS_EX_TOPMOST|win.WS_EX_TOOLWINDOW,
 		className,
 		syscall.StringToUTF16Ptr("BlackOverlay"),
 		win.WS_POPUP|win.WS_VISIBLE,
