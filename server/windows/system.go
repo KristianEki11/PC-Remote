@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -216,32 +217,30 @@ func (RealAPI) TurnOffDisplay() error {
 	displayMutex.Lock()
 	defer displayMutex.Unlock()
 
-	psPath := `C:\Users\Public\display_off_temp.ps1`
-	// SC_MONITORPOWER = 0xF170, value 2 = power off
-	// We broadcast to HWND_BROADCAST (-1) which reaches the desktop window manager.
-	psContent := `$code = '[DllImport("user32.dll")] public static extern int SendMessage(int h, int m, int w, int l);'
-$type = Add-Type -MemberDefinition $code -Name WinUser -PassThru
-$type::SendMessage(-1, 0x0112, 0xF170, 2)
-Remove-Item $PSCommandPath -Force
-`
-	if err := os.WriteFile(psPath, []byte(psContent), 0666); err != nil {
-		return fmt.Errorf("failed to write display-off helper script: %w", err)
+	// Get executable directory
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+	exeDir := filepath.Dir(exePath)
+	screenOffPath := filepath.Join(exeDir, "ScreenOff.exe")
+
+	if _, err := os.Stat(screenOffPath); os.IsNotExist(err) {
+		slog.Error("ScreenOff.exe not found", "path", screenOffPath)
+		return fmt.Errorf("ScreenOff.exe not found")
 	}
 
 	// Set system keep-awake state before turning off display
 	setKeepAwake(true)
 
-	// Use runInUserSessionStart to execute the script asynchronously so the API returns immediately
-	if runErr := runInUserSessionStart("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", psPath); runErr != nil {
-		slog.Error("Failed to run display-off helper in user session", "error", runErr)
+	// Execute ScreenOff.exe
+	if runErr := runInUserSessionStart(screenOffPath); runErr != nil {
+		slog.Error("Failed to run ScreenOff.exe in user session", "error", runErr)
 		setKeepAwake(false) // Clean up keep-awake on failure
-		if _, statErr := os.Stat(psPath); statErr == nil {
-			os.Remove(psPath)
-		}
 		return runErr
 	}
 
-	slog.Info("Display off triggered asynchronously")
+	slog.Info("Display off triggered asynchronously using ScreenOff.exe")
 
 	// Start background monitoring if not already monitoring
 	if !isMonitoring {

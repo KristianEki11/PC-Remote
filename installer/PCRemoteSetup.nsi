@@ -3,7 +3,7 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
-Name "PC Remote Controller v4.0.0"
+Name "PC Remote Controller v4.2.0"
 OutFile "PCRemoteSetup.exe"
 InstallDir "$PROGRAMFILES64\PCRemote"
 RequestExecutionLevel admin
@@ -88,6 +88,7 @@ Section "MainSection" SEC01
     File "..\server\dist\pcremote-server.exe"
     File "..\server\dist\PCRemoteDashboard.exe"
     File "..\server\dist\cloudflared.exe"
+    File "..\server\dist\ScreenOff.exe"
     File "..\server\favicon.ico"
 
     ; Create logs directory
@@ -156,6 +157,8 @@ Section "Uninstall"
     ; Delete files
     Delete "$INSTDIR\pcremote-server.exe"
     Delete "$INSTDIR\PCRemoteDashboard.exe"
+    Delete "$INSTDIR\cloudflared.exe"
+    Delete "$INSTDIR\ScreenOff.exe"
     Delete "$INSTDIR\favicon.ico"
     Delete "$INSTDIR\.env"
     Delete "$INSTDIR\uninstall.exe"
