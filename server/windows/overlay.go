@@ -62,11 +62,30 @@ func showBlackOverlayThread() {
 	}
 	slog.Info("Native Go Overlay window created")
 
+    // Hide the cursor for this thread's windows
+    user32 := syscall.NewLazyDLL("user32.dll")
+    procShowCursor := user32.NewProc("ShowCursor")
+    for {
+        ret, _, _ := procShowCursor.Call(0)
+        if int32(ret) < 0 {
+            break
+        }
+    }
+
 	var msg win.MSG
 	for win.GetMessage(&msg, 0, 0, 0) != 0 {
 		win.TranslateMessage(&msg)
 		win.DispatchMessage(&msg)
 	}
+
+    // Restore cursor
+    for {
+        ret, _, _ := procShowCursor.Call(1)
+        if int32(ret) >= 0 {
+            break
+        }
+    }
+
     isOverlayRunning = false
     overlayHwnd = 0
 }
