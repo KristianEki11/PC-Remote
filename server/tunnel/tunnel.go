@@ -190,6 +190,9 @@ func (tm *TunnelManager) runLoop() {
 				if tm.onURLChanged != nil {
 					tm.onURLChanged(match)
 				}
+
+				// Launch Self-Keep-Alive Engine to prevent tunnel idle timeouts
+				go tm.startKeepAlive(ctx, match)
 			}
 		}
 
@@ -207,6 +210,56 @@ func (tm *TunnelManager) runLoop() {
 		}
 
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// startKeepAlive periodically pings the public tunnel URL to keep it active and warm 24/7.
+func (tm *TunnelManager) startKeepAlive(ctx context.Context, publicURL string) {
+	ticker := time.NewTicker(45 * time.Second)
+	defer ticker.Stop()
+
+	target := publicURL
+	if len(target) > 0 && target[len(target)-1] == '/' {
+		target = target[:len(target)-1]
+	}
+	healthURL := target + "/health"
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	slog.Info("Self-Keep-Alive Engine activated for Quick Tunnel", "url", healthURL)
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("Self-Keep-Alive Engine stopped", "url", healthURL)
+			return
+		case <-ticker.C:
+			tm.mu.RLock()
+			currentURL := tm.publicURL
+			tm.mu.RUnlock()
+
+			if currentURL != publicURL {
+				return
+			}
+
+			req, err := http.NewRequestWithContext(ctx, "GET", healthURL, nil)
+			if err != nil {
+				continue
+			}
+
+			resp, err := client.Do(req)
+			if err == nil {
+				_ = resp.Body.Close()
+				slog.Debug("Self-Keep-Alive ping successful", "status", resp.StatusCode)
+			} else {
+				slog.Warn("Self-Keep-Alive ping failed", "error", err)
+			}
+		}
 	}
 }
 

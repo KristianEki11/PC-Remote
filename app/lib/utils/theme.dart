@@ -41,7 +41,7 @@ class AppGradients {
 class AppGlass {
   static BoxDecoration cardDecoration() {
     return BoxDecoration(
-      color: Colors.white.withOpacity(0.6),
+      color: Colors.white.withOpacity(0.95),
       borderRadius: BorderRadius.circular(24),
       border: Border.all(color: const Color(0xFFE5E5E5), width: 0.5),
       boxShadow: [

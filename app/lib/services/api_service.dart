@@ -78,8 +78,8 @@ class ApiService {
 
   static http.Client? _normalClient;
 
-  static http.Client get _client {
-    if (isUsingPublicTunnel) {
+  static http.Client _getClient(String url) {
+    if (url.contains('trycloudflare.com') || url.contains('.site') || url.contains('.com') || url.contains('.net') || url.contains('.org')) {
       _normalClient ??= http.Client();
       return _normalClient!;
     }
@@ -212,7 +212,7 @@ class ApiService {
 
     // 1. Try primary route
     try {
-      final response = await _client.get(
+      final response = await _getClient(primaryUrl).get(
         Uri.parse('$primaryUrl$path'),
         headers: headers,
       ).timeout(timeout ?? const Duration(milliseconds: 2500));
@@ -227,7 +227,7 @@ class ApiService {
       if (fallbackUrl != primaryUrl && fallbackUrl.isNotEmpty) {
         try {
           debugPrint('Failing over to secondary route: $fallbackUrl$path');
-          final response = await _client.get(
+          final response = await _getClient(fallbackUrl).get(
             Uri.parse('$fallbackUrl$path'),
             headers: headers,
           ).timeout(timeout ?? _timeout);
@@ -259,7 +259,7 @@ class ApiService {
 
     // 1. Try primary route
     try {
-      final response = await _client.post(
+      final response = await _getClient(primaryUrl).post(
         Uri.parse('$primaryUrl$path'),
         headers: headers,
         body: bodyJson,
@@ -273,7 +273,7 @@ class ApiService {
       if (fallbackUrl != primaryUrl && fallbackUrl.isNotEmpty) {
         try {
           debugPrint('Failing over to secondary route: $fallbackUrl$path');
-          final response = await _client.post(
+          final response = await _getClient(fallbackUrl).post(
             Uri.parse('$fallbackUrl$path'),
             headers: headers,
             body: bodyJson,
@@ -445,7 +445,7 @@ class ApiService {
 
       // 1. Try modern /auth/login endpoint
       try {
-        final response = await _client.post(
+        final response = await _getClient(_activeBaseUrl).post(
           Uri.parse('$formattedUrl/auth/login'),
           headers: {
             'Content-Type': 'application/json',
@@ -475,7 +475,7 @@ class ApiService {
       }
 
       // 2. Legacy fallback probe
-      final legacyResponse = await _client.get(
+      final legacyResponse = await _getClient(_activeBaseUrl).get(
         Uri.parse('$formattedUrl/audio/status'),
         headers: {
           'Content-Type': 'application/json',
@@ -496,7 +496,7 @@ class ApiService {
   static Future<String?> changePIN(String currentPin, String newPin) async {
     try {
       final url = _activeBaseUrl;
-      final response = await _client.post(
+      final response = await _getClient(_activeBaseUrl).post(
         Uri.parse('$url/system/pin'),
         headers: _headers,
         body: jsonEncode({

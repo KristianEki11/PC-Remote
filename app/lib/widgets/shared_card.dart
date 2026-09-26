@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 
@@ -16,19 +15,13 @@ class SharedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          decoration: AppGlass.cardDecoration().copyWith(
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
-          child: Padding(
-            padding: padding ?? const EdgeInsets.all(24.0),
-            child: child,
-          ),
-        ),
+    return Container(
+      decoration: AppGlass.cardDecoration().copyWith(
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(24.0),
+        child: RepaintBoundary(child: child),
       ),
     );
   }

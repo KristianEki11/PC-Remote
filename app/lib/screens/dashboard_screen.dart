@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -320,12 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       extendBody: true,
       appBar: AppBar(
         title: const Text('PC Remote'),
-        flexibleSpace: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.white.withOpacity(0.3)),
-          ),
-        ),
+        flexibleSpace: Container(color: Colors.white.withOpacity(0.95)),
         actions: [
           // Animated connection status badge - liquid glass
           Container(
@@ -407,15 +401,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         ),
       ),
       // Liquid glass bottom navigation bar
-      bottomNavigationBar: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.5),
-              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.6), width: 1.5)),
-            ),
-            child: BottomNavigationBar(
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.6), width: 1.5)),
+        ),
+        child: BottomNavigationBar(
               currentIndex: _currentIndex,
               onTap: (index) {
                 HapticFeedback.lightImpact();
@@ -448,8 +439,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 ),
               ],
             ),
-          ),
-        ),
       ),
     );
   }

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -243,11 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 40),
 
                       // Glassmorphism Card for form
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                          child: Container(
+                      Container(
                             constraints: const BoxConstraints(maxWidth: 400),
                             padding: const EdgeInsets.all(28.0),
                             decoration: AppGlass.cardDecoration(),
@@ -389,8 +384,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ],
                             ),
-                          ),
-                        ),
                       ),
                       const SizedBox(height: 32),
                       Text(
