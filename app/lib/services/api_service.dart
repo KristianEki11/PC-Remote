@@ -76,7 +76,13 @@ class ApiService {
     return IOClient(ioHttpClient);
   }
 
+  static http.Client? _normalClient;
+
   static http.Client get _client {
+    if (isUsingPublicTunnel) {
+      _normalClient ??= http.Client();
+      return _normalClient!;
+    }
     _customClient ??= http.Client();
     return _customClient!;
   }
