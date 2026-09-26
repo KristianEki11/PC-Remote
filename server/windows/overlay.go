@@ -11,6 +11,7 @@ import (
 var (
     overlayHwnd win.HWND
     isOverlayRunning bool
+    transparentCursor win.HCURSOR
 )
 
 // ShowBlackOverlay opens a full-screen black window to simulate display off.
@@ -45,7 +46,7 @@ func showBlackOverlayThread() {
 		uintptr(unsafe.Pointer(&andMask[0])),
 		uintptr(unsafe.Pointer(&xorMask[0])),
 	)
-	hCursor := win.HCURSOR(retCursor)
+	transparentCursor = win.HCURSOR(retCursor)
 
 	wc := win.WNDCLASSEX{
 		CbSize:        uint32(unsafe.Sizeof(win.WNDCLASSEX{})),
@@ -53,7 +54,7 @@ func showBlackOverlayThread() {
 		LpszClassName: className,
 		LpfnWndProc:   syscall.NewCallback(overlayWndProc),
 		HbrBackground: win.HBRUSH(win.GetStockObject(win.BLACK_BRUSH)),
-		HCursor:       hCursor,
+		HCursor:       transparentCursor,
 	}
 
 	win.RegisterClassEx(&wc)
@@ -80,6 +81,10 @@ func showBlackOverlayThread() {
 
 	win.SetForegroundWindow(overlayHwnd)
 	win.SetFocus(overlayHwnd)
+	win.SetCapture(overlayHwnd)
+
+	// Fallback: move the physical cursor off-screen to the bottom right
+	win.SetCursorPos(w, h)
 
 	slog.Info("Native Go Overlay window created")
 
@@ -105,7 +110,11 @@ func closeOverlay() {
 
 func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
+	case win.WM_SETCURSOR:
+		win.SetCursor(transparentCursor)
+		return 1
 	case win.WM_KEYDOWN, win.WM_LBUTTONDOWN, win.WM_RBUTTONDOWN, win.WM_MBUTTONDOWN:
+		win.ReleaseCapture()
 		win.PostMessage(hwnd, win.WM_CLOSE, 0, 0)
 		return 0
 	case win.WM_DESTROY:
@@ -114,5 +123,6 @@ func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	}
 	return win.DefWindowProc(hwnd, msg, wParam, lParam)
 }
+
 
 
