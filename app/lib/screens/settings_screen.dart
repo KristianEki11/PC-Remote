@@ -209,7 +209,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 50,
                       child: Container(
                         decoration: BoxDecoration(
-                          gradient: _isLoading ? null : AppGradients.accent,
+                          gradient: _isLoading ? null : AppGradients.primaryButton,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: ElevatedButton(

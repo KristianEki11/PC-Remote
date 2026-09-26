@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -183,215 +184,221 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          // Minimal gradient background
-          gradient: RadialGradient(
-            center: Alignment(0, -0.3),
-            radius: 1.0,
-            colors: [
-              Color(0xFF252630), // Slightly lighter center
-              AppColors.background,
-            ],
-          ),
+          gradient: AppGradients.glassBackground,
         ),
         child: SafeArea(
           child: Center(
             child: TweenAnimationBuilder<Offset>(
-              tween: Tween<Offset>(begin: const Offset(0, 50), end: Offset.zero),
-              duration: const Duration(milliseconds: 400),
+              tween: Tween<Offset>(begin: const Offset(0, 40), end: Offset.zero),
+              duration: const Duration(milliseconds: 600),
               curve: Curves.easeOutCubic,
               builder: (context, offset, child) {
                 return Transform.translate(
                   offset: offset,
                   child: Opacity(
-                    opacity: 1.0 - (offset.dy / 50).clamp(0.0, 1.0),
+                    opacity: 1.0 - (offset.dy / 40).clamp(0.0, 1.0),
                     child: child,
                   ),
                 );
               },
               child: SingleChildScrollView(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  padding: const EdgeInsets.all(28.0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // App icon with claymorphic appearance
+                      // App icon with glassmorphism
                       Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
+                        width: 100,
+                        height: 100,
+                        decoration: AppGlass.cardDecoration().copyWith(
                           shape: BoxShape.circle,
-                          color: AppColors.surfaceLight,
-                          boxShadow: AppClays.card(),
+                          borderRadius: null,
                         ),
                         child: const Icon(
                           Icons.computer_rounded,
-                          size: 44,
+                          size: 48,
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       const Text(
                         'PC Remote',
                         style: TextStyle(
-                          fontSize: 30,
+                          fontSize: 32,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -1,
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       const Text(
                         'Kontrol PC dari genggaman tangan',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 16,
                           color: AppColors.textSecondary,
                           letterSpacing: 0.3,
                         ),
                       ),
-                      const SizedBox(height: 36),
+                      const SizedBox(height: 40),
 
-                      // ── Primary Action: Scan QR Code Button ─────────
-                      if (!kIsWeb) ...[
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
+                      // Glassmorphism Card for form
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Container(
-                            decoration: BoxDecoration(
-                              gradient: AppGradients.primaryButton,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: AppClays.button(),
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed: _isLoading ? null : _openQRScanner,
-                              icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 24),
-                              label: const Text(
-                                'Pindai QR Code di PC',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Divider with text
-                        Row(
-                          children: [
-                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                              child: Text(
-                                'atau masukkan manual',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary.withValues(alpha: 0.7),
-                                ),
-                              ),
-                            ),
-                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // ── Secondary Action: Manual IP & PIN Input ─────
-                      TextField(
-                        controller: _ipController,
-                        keyboardType: TextInputType.url,
-                        decoration: const InputDecoration(
-                          labelText: 'IP Address / URL',
-                          hintText: '192.168.1.x',
-                          prefixIcon: Icon(Icons.wifi, color: AppColors.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _pinController,
-                        obscureText: true,
-                        keyboardType: TextInputType.number,
-                        maxLength: 8,
-                        decoration: const InputDecoration(
-                          labelText: 'PIN',
-                          prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary),
-                          counterText: '',
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Error message display
-                      if (_errorMessage != null) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline, color: AppColors.error, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(color: AppColors.error, fontSize: 13),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // Manual Connect Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: OutlinedButton(
-                          onPressed: _isLoading ? null : _handleLogin,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textPrimary,
-                            side: BorderSide(color: AppColors.primary.withValues(alpha: 0.6), width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: AppColors.primary,
-                                    strokeWidth: 2,
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            padding: const EdgeInsets.all(28.0),
+                            decoration: AppGlass.cardDecoration(),
+                            child: Column(
+                              children: [
+                                if (!kIsWeb) ...[
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 56, // Large touch target
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: AppGradients.primaryButton,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppColors.primary.withOpacity(0.3),
+                                            blurRadius: 16,
+                                            offset: const Offset(0, 6),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ElevatedButton.icon(
+                                        onPressed: _isLoading ? null : _openQRScanner,
+                                        icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 24),
+                                        label: const Text(
+                                          'Pindai QR Code di PC',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.transparent,
+                                          shadowColor: Colors.transparent,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                )
-                              : const Text(
-                                  'Hubungkan Manual',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    children: [
+                                      Expanded(child: Divider(color: AppColors.textMuted.withOpacity(0.2))),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                                        child: Text(
+                                          'atau masukkan manual',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(child: Divider(color: AppColors.textMuted.withOpacity(0.2))),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                ],
+
+                                // Input fields
+                                TextField(
+                                  controller: _ipController,
+                                  keyboardType: TextInputType.url,
+                                  decoration: const InputDecoration(
+                                    labelText: 'IP Address / URL',
+                                    hintText: '192.168.1.x',
+                                    prefixIcon: Icon(Icons.wifi, color: AppColors.primary),
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _pinController,
+                                  obscureText: true,
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 8,
+                                  decoration: const InputDecoration(
+                                    labelText: 'PIN',
+                                    prefixIcon: Icon(Icons.lock_outline, color: AppColors.primary),
+                                    counterText: '',
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+
+                                if (_errorMessage != null) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            _errorMessage!,
+                                            style: const TextStyle(color: AppColors.error, fontSize: 14),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 56, // Large touch target
+                                  child: OutlinedButton(
+                                    onPressed: _isLoading ? null : _handleLogin,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      side: const BorderSide(color: AppColors.primary, width: 2),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      backgroundColor: Colors.white.withOpacity(0.5),
+                                    ),
+                                    child: _isLoading
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              color: AppColors.primary,
+                                              strokeWidth: 2.5,
+                                            ),
+                                          )
+                                        : const Text(
+                                            'Hubungkan Manual',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 32),
-
-                      // Version text
                       Text(
                         _versionText,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary.withValues(alpha: 0.85),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ],

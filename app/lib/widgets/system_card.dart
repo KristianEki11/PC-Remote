@@ -235,19 +235,29 @@ class _SystemCardState extends State<SystemCard> {
         children: [
           const CardHeader(icon: Icons.settings_rounded, title: 'Kontrol Sistem'),
           const SizedBox(height: 16),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 2.3,
+          Column(
             children: [
-              _buildButton('Lock PC', Icons.lock_outline_rounded, Colors.blueAccent, () => _executeAction('Lock PC', ApiService.lockPc)),
-              _buildButton('Sleep', Icons.bedtime_rounded, Colors.purpleAccent, () => _executeAction('Sleep', ApiService.sleepPc)),
-              _buildButton('Display Off', Icons.monitor_outlined, const Color(0xFF26C6DA), () => _executeAction('Display Off', ApiService.displayOff)),
-              _buildButton('Restart', Icons.restart_alt_rounded, Colors.orangeAccent, () => _showConfirmationDialog('Restart', ApiService.restartPc)),
-              _buildButton('Shutdown', Icons.power_settings_new_rounded, Colors.redAccent, () => _showShutdownDialog()),
+              Row(
+                children: [
+                  Expanded(child: _buildButton('Lock PC', Icons.lock_outline_rounded, Colors.blueAccent, () => _executeAction('Lock PC', ApiService.lockPc))),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildButton('Sleep', Icons.bedtime_rounded, Colors.purpleAccent, () => _executeAction('Sleep', ApiService.sleepPc))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _buildButton('Display Off', Icons.monitor_outlined, const Color(0xFF26C6DA), () => _executeAction('Display Off', ApiService.displayOff))),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildButton('Restart', Icons.restart_alt_rounded, Colors.orangeAccent, () => _showConfirmationDialog('Restart', ApiService.restartPc))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _buildButton('Shutdown', Icons.power_settings_new_rounded, Colors.redAccent, () => _showShutdownDialog())),
+                ],
+              ),
             ],
           ),
         ],

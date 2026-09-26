@@ -76,11 +76,9 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
       displayArtist = 'Dijeda';
     }
 
-    return SizedBox(
-      height: 430,
-      child: SharedCard(
-        child: Column(
-          children: [
+    return SharedCard(
+      child: Column(
+        children: [
             CardHeader(
               icon: Icons.music_note_rounded,
               title: 'Media Player',
@@ -234,8 +232,7 @@ class _MediaCardState extends State<MediaCard> with SingleTickerProviderStateMix
           ),
         ],
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildControlButton({

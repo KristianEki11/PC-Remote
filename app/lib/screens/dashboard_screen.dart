@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -166,35 +167,40 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     Text(
                       '${_getGreeting()}, User!',
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
-                        letterSpacing: -0.5,
+                        letterSpacing: -1,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
-                        Text(
-                          'IP PC: ${appState.ipAddress}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
+                        Expanded(
+                          child: Text(
+                            'IP PC: ${appState.ipAddress}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: ApiService.isUsingPublicTunnel
-                                ? const Color(0xFFC2A56D).withValues(alpha: 0.2)
-                                : const Color(0xFF22C55E).withValues(alpha: 0.15),
+                                ? const Color(0xFFF59E0B).withOpacity(0.15)
+                                : const Color(0xFF10B981).withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: ApiService.isUsingPublicTunnel
-                                  ? const Color(0xFFC2A56D)
-                                  : const Color(0xFF22C55E),
-                              width: 0.8,
+                                  ? const Color(0xFFF59E0B).withOpacity(0.5)
+                                  : const Color(0xFF10B981).withOpacity(0.5),
+                              width: 1,
                             ),
                           ),
                           child: Row(
@@ -202,20 +208,20 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                             children: [
                               Icon(
                                 ApiService.isUsingPublicTunnel ? Icons.public : Icons.wifi,
-                                size: 12,
+                                size: 14,
                                 color: ApiService.isUsingPublicTunnel
-                                    ? const Color(0xFFC2A56D)
-                                    : const Color(0xFF22C55E),
+                                    ? const Color(0xFFD97706)
+                                    : const Color(0xFF059669),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 6),
                               Text(
                                 ApiService.isUsingPublicTunnel ? 'Internet (4G/WAN)' : 'WiFi Lokal',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: ApiService.isUsingPublicTunnel
-                                      ? const Color(0xFFC2A56D)
-                                      : const Color(0xFF22C55E),
+                                      ? const Color(0xFFD97706)
+                                      : const Color(0xFF059669),
                                 ),
                               ),
                             ],
@@ -226,11 +232,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               const FadeInStagger(delayMs: 0, child: MediaCard()),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               const FadeInStagger(delayMs: 100, child: BrowserCard()),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -243,7 +249,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         child: Column(
           children: [
             const FadeInStagger(delayMs: 0, child: SystemCard()),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             // Server Info Detail Card
             FadeInStagger(
               delayMs: 100,
@@ -255,25 +261,31 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       icon: Icons.info_outline_rounded,
                       title: 'Informasi Server',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     _buildInfoRow('IP Address', appState.ipAddress),
                     _buildInfoRow('Platform', 'Windows'),
                     _buildInfoRow('Status Koneksi', isConnected ? 'Online' : 'Offline', isStatus: true, statusVal: isConnected),
                     _buildInfoRow('Versi Server', 'v4.0.0'),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     // Action Buttons inside card
                     Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton.icon(
+                          child: OutlinedButton.icon(
                             onPressed: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const SettingsScreen()),
                               );
                             },
-                            icon: const Icon(Icons.settings_outlined, size: 18),
-                            label: const Text('Pengaturan'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: BorderSide(color: AppColors.primary.withOpacity(0.5), width: 1.5),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            icon: const Icon(Icons.settings_outlined, size: 20),
+                            label: const Text('Pengaturan', style: TextStyle(fontWeight: FontWeight.w600)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -281,11 +293,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                           child: ElevatedButton.icon(
                             onPressed: _logout,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.withValues(alpha: 0.1),
+                              backgroundColor: Colors.red.withOpacity(0.1),
                               foregroundColor: Colors.redAccent,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
-                            icon: const Icon(Icons.logout_rounded, size: 18),
-                            label: const Text('Keluar'),
+                            icon: const Icon(Icons.logout_rounded, size: 20),
+                            label: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.w600)),
                           ),
                         ),
                       ],
@@ -294,24 +309,32 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     ];
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      extendBody: true,
       appBar: AppBar(
         title: const Text('PC Remote'),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.white.withOpacity(0.3)),
+          ),
+        ),
         actions: [
-          // Animated connection status badge - claymorphic
+          // Animated connection status badge - liquid glass
           Container(
             margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
+              color: Colors.white.withOpacity(0.6),
               borderRadius: BorderRadius.circular(20),
-              boxShadow: AppClays.iconContainer(),
+              border: Border.all(color: Colors.white, width: 1.5),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -320,15 +343,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   animation: _pulseAnimation,
                   builder: (context, child) {
                     return Container(
-                      width: 8,
-                      height: 8,
+                      width: 10,
+                      height: 10,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isConnected
-                            ? AppColors.success.withValues(alpha: _pulseAnimation.value)
+                            ? AppColors.success.withOpacity(_pulseAnimation.value)
                             : AppColors.error,
                         boxShadow: isConnected
-                            ? [BoxShadow(color: AppColors.success.withValues(alpha: 0.4), blurRadius: 6, spreadRadius: 1)]
+                            ? [BoxShadow(color: AppColors.success.withOpacity(0.4), blurRadius: 6, spreadRadius: 1)]
                             : [],
                       ),
                     );
@@ -338,8 +361,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 Text(
                   isConnected ? 'Online' : 'Offline',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     color: isConnected ? AppColors.success : AppColors.error,
                   ),
                 ),
@@ -348,77 +371,84 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Animated connection banner
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            height: isConnected ? 0 : 40,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 200),
-              opacity: isConnected ? 0.0 : 1.0,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.red.shade700, Colors.red.shade400],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppGradients.glassBackground,
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
+            // Animated connection banner
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              height: isConnected ? 0 : 40,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: isConnected ? 0.0 : 1.0,
+                child: Container(
+                  width: double.infinity,
+                  color: AppColors.error.withOpacity(0.9),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Koneksi server terputus',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'Koneksi server terputus',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: tabs,
-            ),
-          ),
-        ],
-      ),
-      // Claymorphic bottom navigation bar
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: AppClays.navBar(),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            HapticFeedback.lightImpact();
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textMuted,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded),
-              activeIcon: Icon(Icons.dashboard_rounded, color: AppColors.primary),
-              label: 'Utama',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.volume_up_rounded),
-              activeIcon: Icon(Icons.volume_up_rounded, color: AppColors.primary),
-              label: 'Mixer',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_system_daydream_rounded),
-              activeIcon: Icon(Icons.settings_system_daydream_rounded, color: AppColors.primary),
-              label: 'Sistem',
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: tabs,
+              ),
             ),
           ],
+        ),
+      ),
+      // Liquid glass bottom navigation bar
+      bottomNavigationBar: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.5),
+              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.6), width: 1.5)),
+            ),
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: AppColors.textMuted,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.dashboard_outlined)),
+                  activeIcon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.dashboard_rounded)),
+                  label: 'Utama',
+                ),
+                BottomNavigationBarItem(
+                  icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.tune_outlined)),
+                  activeIcon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.tune_rounded)),
+                  label: 'Mixer',
+                ),
+                BottomNavigationBarItem(
+                  icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.desktop_windows_outlined)),
+                  activeIcon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.desktop_windows_rounded)),
+                  label: 'Sistem',
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -426,11 +456,11 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   Widget _buildInfoRow(String label, String value, {bool isStatus = false, bool statusVal = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.w500)),
           if (isStatus)
             Row(
               children: [
@@ -439,15 +469,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: statusVal ? Colors.green : Colors.red,
+                    color: statusVal ? AppColors.success : AppColors.error,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
                   value,
                   style: TextStyle(
-                    color: statusVal ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
+                    color: statusVal ? AppColors.success : AppColors.error,
+                    fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
                 ),

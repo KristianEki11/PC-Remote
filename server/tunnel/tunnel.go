@@ -16,6 +16,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"pcremote-server/config"
 )
 
 var (
@@ -126,8 +128,17 @@ func (tm *TunnelManager) runLoop() {
 		tm.cancel = cancel
 		tm.mu.Unlock()
 
-		targetLocalURL := fmt.Sprintf("https://localhost:%s", tm.port)
-		cmd := exec.CommandContext(ctx, binPath, "tunnel", "--url", targetLocalURL, "--no-tls-verify")
+		var cmd *exec.Cmd
+		if config.App.TunnelToken != "" {
+			cmd = exec.CommandContext(ctx, binPath, "tunnel", "--no-autoupdate", "run", "--token", config.App.TunnelToken)
+			if config.App.TunnelURL != "" && tm.onURLChanged != nil {
+				tm.onURLChanged(config.App.TunnelURL)
+			}
+		} else {
+			targetLocalURL := fmt.Sprintf("https://localhost:%s", tm.port)
+			cmd = exec.CommandContext(ctx, binPath, "tunnel", "--url", targetLocalURL, "--no-tls-verify")
+		}
+
 		if runtime.GOOS == "windows" {
 			cmd.SysProcAttr = &syscall.SysProcAttr{
 				HideWindow: true,

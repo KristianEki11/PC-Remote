@@ -53,12 +53,12 @@ class ApiService {
           try {
             final certDigest = crypto.sha256.convert(cert.der);
             final certHex = certDigest.toString();
-            if (certHex.toLowerCase() == expectedFingerprint.toLowerCase()) {
-              return true;
-            }
-          } catch (_) {}
+            return certHex.toLowerCase() == expectedFingerprint.toLowerCase(); // Tolak jika tidak cocok
+          } catch (_) {
+            return false;
+          }
         }
-        // Always allow for local network / self-signed server certificates.
+        // Izinkan hanya jika fingerprint belum tersimpan (first-time connect)
         return true;
       };
       _customClient = IOClient(ioHttpClient);
@@ -151,9 +151,7 @@ class ApiService {
     };
 
     if (token.isNotEmpty) {
-      // Send both Bearer token (modern) and X-PIN (legacy fallback)
       headers['Authorization'] = 'Bearer $token';
-      headers['X-PIN'] = token;
     }
 
     return headers;

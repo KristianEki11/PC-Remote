@@ -15,9 +15,11 @@ import (
 
 // Config holds all server configuration loaded from .env and environment variables.
 type Config struct {
-	Port       string
-	PIN        string // bcrypt hash (or plaintext for legacy, auto-migrated on startup)
-	TLSCertDir string
+	Port        string
+	PIN         string // bcrypt hash (or plaintext for legacy, auto-migrated on startup)
+	TLSCertDir  string
+	TunnelToken string
+	TunnelURL   string
 }
 
 // App is the global configuration instance.
@@ -90,6 +92,9 @@ func Init() {
 			App.TLSCertDir = "tls"
 		}
 	}
+
+	App.TunnelToken = os.Getenv("CLOUDFLARE_TUNNEL_TOKEN")
+	App.TunnelURL = os.Getenv("CLOUDFLARE_TUNNEL_URL")
 }
 
 func loadLiteralEnv(path string) {

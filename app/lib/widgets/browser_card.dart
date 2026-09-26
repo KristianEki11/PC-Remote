@@ -113,6 +113,7 @@ class _BrowserCardState extends State<BrowserCard> {
           const SizedBox(height: 12),
           // Presets Grid
           GridView.builder(
+            padding: EdgeInsets.zero,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _presets.length,
@@ -120,7 +121,7 @@ class _BrowserCardState extends State<BrowserCard> {
               crossAxisCount: 3,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 1.15,
+              childAspectRatio: 1.5,
             ),
             itemBuilder: (context, index) {
               final preset = _presets[index];
