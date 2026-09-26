@@ -30,13 +30,30 @@ func showBlackOverlayThread() {
 	hInstance := win.GetModuleHandle(nil)
 	className := syscall.StringToUTF16Ptr("PCRemoteBlackOverlayClass")
 
+	// Create invisible transparent cursor
+	andMask := make([]byte, 128)
+	for i := range andMask {
+		andMask[i] = 0xFF
+	}
+	xorMask := make([]byte, 128)
+	user32 := syscall.NewLazyDLL("user32.dll")
+	procCreateCursor := user32.NewProc("CreateCursor")
+	retCursor, _, _ := procCreateCursor.Call(
+		uintptr(hInstance),
+		0, 0,
+		32, 32,
+		uintptr(unsafe.Pointer(&andMask[0])),
+		uintptr(unsafe.Pointer(&xorMask[0])),
+	)
+	hCursor := win.HCURSOR(retCursor)
+
 	wc := win.WNDCLASSEX{
 		CbSize:        uint32(unsafe.Sizeof(win.WNDCLASSEX{})),
 		HInstance:     hInstance,
 		LpszClassName: className,
 		LpfnWndProc:   syscall.NewCallback(overlayWndProc),
 		HbrBackground: win.HBRUSH(win.GetStockObject(win.BLACK_BRUSH)),
-		HCursor:       0,
+		HCursor:       hCursor,
 	}
 
 	win.RegisterClassEx(&wc)
@@ -60,17 +77,13 @@ func showBlackOverlayThread() {
         isOverlayRunning = false
 		return
 	}
+
+	win.SetForegroundWindow(overlayHwnd)
+	win.SetFocus(overlayHwnd)
+
 	slog.Info("Native Go Overlay window created")
 
-    // Hide the cursor for this thread's windows
-    user32 := syscall.NewLazyDLL("user32.dll")
-    procShowCursor := user32.NewProc("ShowCursor")
-    for {
-        ret, _, _ := procShowCursor.Call(0)
-        if int32(ret) < 0 {
-            break
-        }
-    }
+    
 
 	var msg win.MSG
 	for win.GetMessage(&msg, 0, 0, 0) != 0 {
@@ -78,13 +91,7 @@ func showBlackOverlayThread() {
 		win.DispatchMessage(&msg)
 	}
 
-    // Restore cursor
-    for {
-        ret, _, _ := procShowCursor.Call(1)
-        if int32(ret) >= 0 {
-            break
-        }
-    }
+    
 
     isOverlayRunning = false
     overlayHwnd = 0
@@ -101,12 +108,11 @@ func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	case win.WM_KEYDOWN, win.WM_LBUTTONDOWN, win.WM_RBUTTONDOWN, win.WM_MBUTTONDOWN:
 		win.PostMessage(hwnd, win.WM_CLOSE, 0, 0)
 		return 0
-	case win.WM_SETCURSOR:
-		win.SetCursor(0)
-		return 1
 	case win.WM_DESTROY:
 		win.PostQuitMessage(0)
 		return 0
 	}
 	return win.DefWindowProc(hwnd, msg, wParam, lParam)
 }
+
+

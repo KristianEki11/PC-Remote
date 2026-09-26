@@ -3,7 +3,7 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
-Name "PC Remote Controller v4.2.4"
+Name "PC Remote Controller v4.2.6"
 OutFile "PCRemoteSetup.exe"
 InstallDir "$PROGRAMFILES64\PCRemote"
 RequestExecutionLevel admin
@@ -120,13 +120,7 @@ Section "MainSection" SEC01
     ; Start the application directly in the user session
     Exec '"$INSTDIR\pcremote-server.exe"'
 
-    MessageBox MB_OK|MB_ICONINFORMATION "PC Remote Server installed successfully!$\r$\nServer is running on port 8000.$\r$\nConnect your Android app to: http://[your-pc-ip]:8000$\r$\n$\r$\nYou can now manage the server using 'PCRemote Dashboard' on your Desktop."
-
-    MessageBox MB_YESNO|MB_ICONEXCLAMATION "⚠️ IMPORTANT: Network Profile Check$\r$\n$\r$\nMake sure your WiFi is set to PRIVATE network.$\r$\n$\r$\nOpen: Settings -> Network -> [Your WiFi] -> Properties$\r$\nSet to: Private Network$\r$\n$\r$\nWithout this, your phone cannot connect even if$\r$\nthe server is running correctly.$\r$\n$\r$\nOpen Network Settings now?" IDYES OpenNetwork IDNO SkipNetwork
-
-OpenNetwork:
-    ExecShell "open" "ms-settings:network"
-SkipNetwork:
+    
 
     ; Write uninstaller
     WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -167,5 +161,6 @@ KeepLogs:
 
     RMDir "$INSTDIR"
 SectionEnd
+
 
 
