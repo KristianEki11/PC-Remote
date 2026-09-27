@@ -70,197 +70,198 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-24">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 lg:pt-24 pb-24">
         
-        {/* Headline & Description */}
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-[#a1a1aa] mb-6">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>Go Backend & Cloudflare Quick Tunnel</span>
-          </div>
+        <div className="flex flex-col lg:flex-row items-center lg:items-start gap-12 lg:gap-20">
+          
+          {/* Left Column: Headline & Description & Downloads */}
+          <div className="flex-1 w-full max-w-2xl lg:pt-8">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-[#a1a1aa] mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>Go Backend & Cloudflare Quick Tunnel</span>
+            </div>
 
-          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-white leading-tight">
-            Kontrol Windows PC Anda langsung dari genggaman.
-          </h1>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.1]">
+              Kontrol Windows PC Anda dari genggaman.
+            </h1>
 
-          <p className="mt-5 text-lg text-[#a1a1aa] leading-relaxed">
-            Aplikasi kendali jarak jauh yang ringan, aman, dan tanpa konfigurasi router. Mengatur volume sistem, kontrol media, matikan layar, hingga screen mirroring secara real-time melalui WiFi lokal maupun jaringan internet (WAN).
-          </p>
+            <p className="mt-6 text-lg text-[#a1a1aa] leading-relaxed">
+              Aplikasi kendali jarak jauh yang ringan, aman, dan tanpa konfigurasi router. Mengatur volume sistem, kontrol media, matikan layar, hingga screen mirroring secara real-time melalui WiFi lokal maupun jaringan internet (WAN).
+            </p>
 
-          {/* Quick Action / Download Hub Direct */}
-          <div id="download" className="mt-10 pt-8 border-t border-white/[0.08] grid grid-cols-1 sm:grid-cols-3 gap-4">
-            
-            {/* Windows Download */}
-            <a 
-              href="https://github.com/KristianEki11/PC-Remote/releases/latest" 
-              target="_blank" 
-              rel="noreferrer"
-              className="p-5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 transition-all text-left group"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Monitor className="w-5 h-5 text-blue-400" />
-                <Download className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors" />
-              </div>
-              <div className="font-semibold text-white text-base">Windows Setup</div>
-              <div className="text-xs text-[#a1a1aa] mt-1">PCRemoteSetup.exe • ~12 MB</div>
-              <div className="text-[11px] font-mono text-[#71717a] mt-3">Windows 10 / 11 (64-bit)</div>
-            </a>
+            {/* Quick Action / Download Hub Direct */}
+            <div id="download" className="mt-10 pt-8 border-t border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              {/* Windows Download */}
+              <a 
+                href="https://github.com/KristianEki11/PC-Remote/releases/latest" 
+                target="_blank" 
+                rel="noreferrer"
+                className="p-5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/10 hover:border-white/20 transition-all text-left group flex flex-col h-full"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <Monitor className="w-5 h-5 text-blue-400" />
+                  <Download className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors" />
+                </div>
+                <div className="font-semibold text-white text-base">Windows Setup</div>
+                <div className="text-xs text-[#a1a1aa] mt-1">PCRemoteSetup.exe • ~12 MB</div>
+                <div className="text-[11px] font-mono text-[#71717a] mt-auto pt-4">Windows 10 / 11 (64-bit)</div>
+              </a>
 
-            {/* Android Download */}
-            <a 
-              href="https://github.com/KristianEki11/PC-Remote/releases/latest" 
-              target="_blank" 
-              rel="noreferrer"
-              className="p-5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 transition-all text-left group"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Smartphone className="w-5 h-5 text-emerald-400" />
-                <Download className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors" />
-              </div>
-              <div className="font-semibold text-white text-base">Android APK</div>
-              <div className="text-xs text-[#a1a1aa] mt-1">PCRemoteApp.apk • Universal</div>
-              <div className="text-[11px] font-mono text-[#71717a] mt-3">Android 8.0 atau lebih baru</div>
-            </a>
+              {/* Android Download */}
+              <a 
+                href="https://github.com/KristianEki11/PC-Remote/releases/latest" 
+                target="_blank" 
+                rel="noreferrer"
+                className="p-5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/10 hover:border-white/20 transition-all text-left group flex flex-col h-full"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <Smartphone className="w-5 h-5 text-emerald-400" />
+                  <Download className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors" />
+                </div>
+                <div className="font-semibold text-white text-base">Android APK</div>
+                <div className="text-xs text-[#a1a1aa] mt-1">PCRemoteApp.apk • Universal</div>
+                <div className="text-[11px] font-mono text-[#71717a] mt-auto pt-4">Android 8.0+</div>
+              </a>
 
-            {/* iOS Web Remote */}
-            <Link 
-              href="/connect" 
-              className="p-5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 transition-all text-left group"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Globe className="w-5 h-5 text-purple-400" />
+              {/* iOS Web Remote - Full Width */}
+              <Link 
+                href="/connect" 
+                className="sm:col-span-2 p-5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/10 hover:border-white/20 transition-all text-left group flex items-center justify-between"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                    <Globe className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white text-base">iPhone Web Remote</div>
+                    <div className="text-xs text-[#a1a1aa] mt-1">Langsung via Safari (PWA)</div>
+                  </div>
+                </div>
                 <ExternalLink className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors" />
-              </div>
-              <div className="font-semibold text-white text-base">iPhone Web Remote</div>
-              <div className="text-xs text-[#a1a1aa] mt-1">Langsung via Safari (PWA)</div>
-              <div className="text-[11px] font-mono text-[#71717a] mt-3">remote.redlinevis.site/connect</div>
-            </Link>
+              </Link>
 
-          </div>
-        </div>
-
-        {/* Authentic Remote Control Interface Preview */}
-        <div className="mt-16 pt-12 border-t border-white/[0.08]">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">Antarmuka Pengontrol</h2>
-              <p className="text-sm text-[#a1a1aa] mt-1">Tampilan dan kontrol yang sama persis seperti yang ada di aplikasi Anda.</p>
             </div>
-            {lastAction && (
-              <span className="text-xs font-mono px-3 py-1 rounded bg-white/10 text-white self-start sm:self-auto animate-pulse">
-                Aksi: {lastAction}
-              </span>
-            )}
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#121215] p-6 sm:p-8 max-w-3xl">
+          {/* Right Column: Authentic Remote Control Interface Preview */}
+          <div className="flex-1 w-full max-w-[400px] lg:max-w-md relative">
             
-            {/* Top Status Bar */}
-            <div className="flex items-center justify-between pb-6 border-b border-white/[0.06] text-xs">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span className="font-medium text-white">Status: Terhubung</span>
-                <span className="text-[#71717a]">| 192.168.1.100:8000</span>
+            {/* Ambient Glow */}
+            <div className="absolute -inset-1 bg-gradient-to-tr from-blue-500/10 via-emerald-500/10 to-purple-500/10 rounded-3xl blur-2xl opacity-50"></div>
+            
+            <div className="relative rounded-3xl border border-white/10 bg-[#09090b] overflow-hidden shadow-2xl">
+              {/* App Header */}
+              <div className="bg-[#121215] px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-white flex items-center space-x-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Antarmuka Pengontrol</span>
+                  </div>
+                  <div className="text-[10px] font-mono text-[#71717a] mt-1">192.168.1.100:8000</div>
+                </div>
+                {lastAction && (
+                  <span className="text-[10px] font-mono px-2 py-1 rounded bg-white/10 text-white animate-pulse">
+                    {lastAction}
+                  </span>
+                )}
               </div>
-              <span className="text-[#71717a] font-mono">Cloudflare Tunnel: Aktif</span>
+
+              <div className="p-6">
+                {/* Volume Control */}
+                <div className="pb-6 border-b border-white/[0.06]">
+                  <div className="flex justify-between items-center text-xs mb-4 text-[#a1a1aa]">
+                    <span className="font-medium uppercase tracking-wider">Master Audio</span>
+                    <span className="font-mono text-white">{isMuted ? "MUTE" : `${volume}%`}</span>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <button 
+                      onClick={() => {
+                        setIsMuted(!isMuted);
+                        handleAction(isMuted ? "Audio Unmute" : "Audio Mute");
+                      }}
+                      className="text-[#a1a1aa] hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
+                      title="Toggle Mute"
+                    >
+                      {isMuted ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5" />}
+                    </button>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={isMuted ? 0 : volume}
+                      disabled={isMuted}
+                      onChange={(e) => {
+                        setVolume(parseInt(e.target.value));
+                        handleAction(`Volume: ${e.target.value}%`);
+                      }}
+                      className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Media Player Controls */}
+                <div className="py-6 border-b border-white/[0.06]">
+                  <div className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider mb-1">Windows Media Transport</div>
+                  <div className="text-sm font-semibold text-white mb-4">Spotify / YouTube / Media</div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <button 
+                      onClick={() => handleAction("Media: Previous")}
+                      className="flex-1 py-3 flex justify-center rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-white active:scale-95 transition-all"
+                    >
+                      <SkipBack className="w-5 h-5 fill-current" />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsPlaying(!isPlaying);
+                        handleAction(isPlaying ? "Media: Paused" : "Media: Play");
+                      }}
+                      className="flex-1 py-3 flex justify-center rounded-xl bg-white text-black hover:bg-white/90 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                    >
+                      {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
+                    </button>
+                    <button 
+                      onClick={() => handleAction("Media: Next")}
+                      className="flex-1 py-3 flex justify-center rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-white active:scale-95 transition-all"
+                    >
+                      <SkipForward className="w-5 h-5 fill-current" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Power Actions */}
+                <div className="pt-6">
+                  <div className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider mb-4">Aksi Daya & Sistem</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => handleAction("Matikan Layar (Display Off)")}
+                      className="py-3 px-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-medium text-white flex flex-col items-center justify-center space-y-2 active:scale-95 transition-all"
+                    >
+                      <EyeOff className="w-5 h-5 text-[#a1a1aa]" />
+                      <span>Matikan Layar</span>
+                    </button>
+                    <button 
+                      onClick={() => handleAction("Kunci PC (LockWorkStation)")}
+                      className="py-3 px-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-medium text-white flex flex-col items-center justify-center space-y-2 active:scale-95 transition-all"
+                    >
+                      <Lock className="w-5 h-5 text-[#a1a1aa]" />
+                      <span>Kunci PC</span>
+                    </button>
+                    <button 
+                      onClick={() => handleAction("Tidurkan PC (S3 Sleep)")}
+                      className="col-span-2 py-3 px-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-medium text-white flex items-center justify-center space-x-2 active:scale-95 transition-all"
+                    >
+                      <Moon className="w-4 h-4 text-[#a1a1aa]" />
+                      <span>Sleep Mode</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
             </div>
-
-            {/* Volume Control */}
-            <div className="py-6 border-b border-white/[0.06]">
-              <div className="flex justify-between items-center text-xs mb-3 text-[#a1a1aa]">
-                <span className="font-medium uppercase tracking-wider">Master Audio</span>
-                <span className="font-mono text-white">{isMuted ? "MUTE" : `${volume}%`}</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button 
-                  onClick={() => {
-                    setIsMuted(!isMuted);
-                    handleAction(isMuted ? "Audio Unmute" : "Audio Mute");
-                  }}
-                  className="text-[#a1a1aa] hover:text-white p-2 rounded-lg hover:bg-white/5"
-                  title="Toggle Mute"
-                >
-                  {isMuted ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5" />}
-                </button>
-                <input 
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={isMuted ? 0 : volume}
-                  disabled={isMuted}
-                  onChange={(e) => {
-                    setVolume(parseInt(e.target.value));
-                    handleAction(`Volume: ${e.target.value}%`);
-                  }}
-                  className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-white"
-                />
-              </div>
-            </div>
-
-            {/* Media Player Controls */}
-            <div className="py-6 border-b border-white/[0.06] flex items-center justify-between">
-              <div>
-                <div className="text-xs font-mono text-[#71717a] uppercase tracking-wider">Windows Media Transport</div>
-                <div className="text-sm font-semibold text-white mt-1">Spotify / YouTube / Media Player</div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button 
-                  onClick={() => handleAction("Media: Previous")}
-                  className="p-3 rounded-lg border border-white/10 hover:bg-white/5 text-white active:scale-95 transition-all"
-                  title="Previous"
-                >
-                  <SkipBack className="w-4 h-4 fill-current" />
-                </button>
-                <button 
-                  onClick={() => {
-                    setIsPlaying(!isPlaying);
-                    handleAction(isPlaying ? "Media: Paused" : "Media: Play");
-                  }}
-                  className="p-3 rounded-lg bg-white text-black hover:bg-white/90 active:scale-95 transition-all"
-                  title="Play/Pause"
-                >
-                  {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                </button>
-                <button 
-                  onClick={() => handleAction("Media: Next")}
-                  className="p-3 rounded-lg border border-white/10 hover:bg-white/5 text-white active:scale-95 transition-all"
-                  title="Next"
-                >
-                  <SkipForward className="w-4 h-4 fill-current" />
-                </button>
-              </div>
-            </div>
-
-            {/* Power Actions */}
-            <div className="pt-6">
-              <div className="text-xs font-mono text-[#71717a] uppercase tracking-wider mb-4">Aksi Daya & Sistem</div>
-              <div className="grid grid-cols-3 gap-3">
-                <button 
-                  onClick={() => handleAction("Matikan Layar (Display Off)")}
-                  className="py-3 px-4 rounded-lg border border-white/10 hover:bg-white/5 text-xs font-medium text-white flex items-center justify-center space-x-2 active:scale-95 transition-all"
-                >
-                  <EyeOff className="w-4 h-4 text-[#a1a1aa]" />
-                  <span>Matikan Layar</span>
-                </button>
-                <button 
-                  onClick={() => handleAction("Kunci PC (LockWorkStation)")}
-                  className="py-3 px-4 rounded-lg border border-white/10 hover:bg-white/5 text-xs font-medium text-white flex items-center justify-center space-x-2 active:scale-95 transition-all"
-                >
-                  <Lock className="w-4 h-4 text-[#a1a1aa]" />
-                  <span>Kunci PC</span>
-                </button>
-                <button 
-                  onClick={() => handleAction("Tidurkan PC (S3 Sleep)")}
-                  className="py-3 px-4 rounded-lg border border-white/10 hover:bg-white/5 text-xs font-medium text-white flex items-center justify-center space-x-2 active:scale-95 transition-all"
-                >
-                  <Moon className="w-4 h-4 text-[#a1a1aa]" />
-                  <span>Sleep</span>
-                </button>
-              </div>
-            </div>
-
           </div>
+
         </div>
 
         {/* Feature Highlights Section */}
