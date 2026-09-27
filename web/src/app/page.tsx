@@ -54,16 +54,16 @@ export default function LandingPage() {
 
           <nav className="hidden sm:flex items-center space-x-6 text-sm text-[#a1a1aa]">
             <a href="#download" className="hover:text-white transition-colors">Download</a>
-            <a href="#features" className="hover:text-white transition-colors">Fitur</a>
-            <a href="#quickstart" className="hover:text-white transition-colors">Panduan</a>
-            <a href="#specs" className="hover:text-white transition-colors">Spesifikasi</a>
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#quickstart" className="hover:text-white transition-colors">Quickstart</a>
+            <a href="#specs" className="hover:text-white transition-colors">Specs</a>
           </nav>
 
           <Link 
             href="/connect" 
             className="text-xs font-semibold px-4 py-2 rounded-lg bg-white text-black hover:bg-white/90 active:scale-95 transition-all flex items-center space-x-1.5"
           >
-            <span>Buka Web Remote</span>
+            <span>Open Web Remote</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -76,17 +76,12 @@ export default function LandingPage() {
           
           {/* Left Column: Headline & Description & Downloads */}
           <div className="flex-1 w-full max-w-2xl lg:pt-8">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-[#a1a1aa] mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span>Go Backend & Cloudflare Quick Tunnel</span>
-            </div>
-
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.1]">
-              Kontrol Windows PC Anda dari genggaman.
+              Control your Windows PC from the palm of your hand.
             </h1>
 
             <p className="mt-6 text-lg text-[#a1a1aa] leading-relaxed">
-              Aplikasi kendali jarak jauh yang ringan, aman, dan tanpa konfigurasi router. Mengatur volume sistem, kontrol media, matikan layar, hingga screen mirroring secara real-time melalui WiFi lokal maupun jaringan internet (WAN).
+              A lightweight, secure, and zero-config remote control app. Manage system volume, media playback, sleep states, and real-time screen mirroring over local WiFi or WAN.
             </p>
 
             {/* Quick Action / Download Hub Direct */}
@@ -135,7 +130,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <div className="font-semibold text-white text-base">iPhone Web Remote</div>
-                    <div className="text-xs text-[#a1a1aa] mt-1">Langsung via Safari (PWA)</div>
+                    <div className="text-xs text-[#a1a1aa] mt-1">Directly via Safari (PWA)</div>
                   </div>
                 </div>
                 <ExternalLink className="w-4 h-4 text-[#71717a] group-hover:text-white transition-colors" />
@@ -156,13 +151,13 @@ export default function LandingPage() {
                 <div>
                   <div className="text-sm font-semibold text-white flex items-center space-x-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>Antarmuka Pengontrol</span>
+                    <span>Controller Interface</span>
                   </div>
                   <div className="text-[10px] font-mono text-[#71717a] mt-1">192.168.1.100:8000</div>
                 </div>
                 {lastAction && (
                   <span className="text-[10px] font-mono px-2 py-1 rounded bg-white/10 text-white animate-pulse">
-                    {lastAction}
+                    Action: {lastAction}
                   </span>
                 )}
               </div>
@@ -232,24 +227,24 @@ export default function LandingPage() {
 
                 {/* Power Actions */}
                 <div className="pt-6">
-                  <div className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider mb-4">Aksi Daya & Sistem</div>
+                  <div className="text-[10px] font-mono text-[#71717a] uppercase tracking-wider mb-4">Power & System Actions</div>
                   <div className="grid grid-cols-2 gap-3">
                     <button 
-                      onClick={() => handleAction("Matikan Layar (Display Off)")}
+                      onClick={() => handleAction("Turn Off Display")}
                       className="py-3 px-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-medium text-white flex flex-col items-center justify-center space-y-2 active:scale-95 transition-all"
                     >
                       <EyeOff className="w-5 h-5 text-[#a1a1aa]" />
-                      <span>Matikan Layar</span>
+                      <span>Turn Off Display</span>
                     </button>
                     <button 
-                      onClick={() => handleAction("Kunci PC (LockWorkStation)")}
+                      onClick={() => handleAction("Lock PC")}
                       className="py-3 px-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-medium text-white flex flex-col items-center justify-center space-y-2 active:scale-95 transition-all"
                     >
                       <Lock className="w-5 h-5 text-[#a1a1aa]" />
-                      <span>Kunci PC</span>
+                      <span>Lock PC</span>
                     </button>
                     <button 
-                      onClick={() => handleAction("Tidurkan PC (S3 Sleep)")}
+                      onClick={() => handleAction("S3 Sleep")}
                       className="col-span-2 py-3 px-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-medium text-white flex items-center justify-center space-x-2 active:scale-95 transition-all"
                     >
                       <Moon className="w-4 h-4 text-[#a1a1aa]" />
@@ -266,9 +261,9 @@ export default function LandingPage() {
 
         {/* Feature Highlights Section */}
         <div id="features" className="mt-20 pt-16 border-t border-white/[0.08]">
-          <h2 className="text-2xl font-bold text-white tracking-tight mb-2">Kemampuan Inti</h2>
+          <h2 className="text-2xl font-bold text-white tracking-tight mb-2">Core Capabilities</h2>
           <p className="text-sm text-[#a1a1aa] mb-10 max-w-2xl">
-            Arsitektur yang dibuat untuk keandalan maksimal tanpa bloatware pihak ketiga.
+            Architected for maximum reliability without third-party bloatware.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -276,10 +271,10 @@ export default function LandingPage() {
             <div className="p-6 rounded-xl border border-white/10 bg-white/[0.02]">
               <div className="flex items-center space-x-3 mb-3">
                 <Globe className="w-5 h-5 text-blue-400" />
-                <h3 className="font-semibold text-white text-base">Akses WAN Otomatis (Cloudflare Tunnel)</h3>
+                <h3 className="font-semibold text-white text-base">Automatic WAN Access (Cloudflare Tunnel)</h3>
               </div>
               <p className="text-sm text-[#a1a1aa] leading-relaxed">
-                Terkoneksi dari mana saja di luar rumah (4G/5G) tanpa perlu setting port-forwarding router atau DDNS. Server otomatis membuat tunnel aman saat dinyalakan.
+                Connect from anywhere outside your home (4G/5G) without port-forwarding or DDNS. The server automatically establishes a secure tunnel on startup.
               </p>
             </div>
 
@@ -289,7 +284,7 @@ export default function LandingPage() {
                 <h3 className="font-semibold text-white text-base">Windows Core Audio COM API</h3>
               </div>
               <p className="text-sm text-[#a1a1aa] leading-relaxed">
-                Menggunakan COM Worker thread terisolasi di Go (`IMMDeviceEnumerator`). Mendukung kontrol volume master dan multi-channel SteelSeries Sonar.
+                Utilizes isolated COM worker threads in Go (`IMMDeviceEnumerator`). Supports master volume control and multi-channel routing like SteelSeries Sonar.
               </p>
             </div>
 
@@ -299,17 +294,17 @@ export default function LandingPage() {
                 <h3 className="font-semibold text-white text-base">Screen Mirroring H.264 (v5.0)</h3>
               </div>
               <p className="text-sm text-[#a1a1aa] leading-relaxed">
-                Streaming tampilan monitor langsung ke HP via WebSocket dengan latensi ~80-150ms di jaringan lokal dan touch-to-click injection.
+                Stream your monitor directly to your phone via WebSockets with ~80-150ms local latency and touch-to-click injection.
               </p>
             </div>
 
             <div className="p-6 rounded-xl border border-white/10 bg-white/[0.02]">
               <div className="flex items-center space-x-3 mb-3">
                 <QrCode className="w-5 h-5 text-amber-400" />
-                <h3 className="font-semibold text-white text-base">Pairing QR Code AES-256</h3>
+                <h3 className="font-semibold text-white text-base">AES-256 QR Code Pairing</h3>
               </div>
               <p className="text-sm text-[#a1a1aa] leading-relaxed">
-                Cukup buka dashboard di PC dan scan QR Code menggunakan kamera HP. Token satu kali pakai dengan masa berlaku 5 menit mencegah akses tanpa izin.
+                Simply open the PC dashboard and scan the QR Code with your phone. One-time tokens with a 5-minute expiry prevent unauthorized access.
               </p>
             </div>
 
@@ -318,31 +313,31 @@ export default function LandingPage() {
 
         {/* 3-Step Quickstart */}
         <div id="quickstart" className="mt-20 pt-16 border-t border-white/[0.08]">
-          <h2 className="text-2xl font-bold text-white tracking-tight mb-2">Cara Menghubungkan</h2>
-          <p className="text-sm text-[#a1a1aa] mb-10">Tiga langkah cepat tanpa perlu pengaturan teknis rumit.</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight mb-2">How to Connect</h2>
+          <p className="text-sm text-[#a1a1aa] mb-10">Three quick steps with no complex technical setup.</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="p-6 rounded-xl border border-white/10 bg-white/[0.02]">
-              <div className="text-xs font-mono font-bold text-white/50 mb-3">LANGKAH 01</div>
-              <h3 className="font-semibold text-white mb-2">Jalankan Setup di PC</h3>
+              <div className="text-xs font-mono font-bold text-white/50 mb-3">STEP 01</div>
+              <h3 className="font-semibold text-white mb-2">Run Setup on PC</h3>
               <p className="text-xs text-[#a1a1aa] leading-relaxed">
-                Unduh dan pasang `PCRemoteSetup.exe`. Tentukan 4-digit PIN saat diminta. Server akan otomatis aktif di latar belakang saat PC menyala.
+                Download and install `PCRemoteSetup.exe`. Set a 4-digit PIN when prompted. The server automatically runs in the background on boot.
               </p>
             </div>
 
             <div className="p-6 rounded-xl border border-white/10 bg-white/[0.02]">
-              <div className="text-xs font-mono font-bold text-white/50 mb-3">LANGKAH 02</div>
-              <h3 className="font-semibold text-white mb-2">Buka Aplikasi di HP</h3>
+              <div className="text-xs font-mono font-bold text-white/50 mb-3">STEP 02</div>
+              <h3 className="font-semibold text-white mb-2">Open App on Phone</h3>
               <p className="text-xs text-[#a1a1aa] leading-relaxed">
-                Untuk Android, install `PCRemoteApp.apk`. Untuk pengguna iPhone, buka menu Web Remote di `remote.redlinevis.site/connect`.
+                For Android, install `PCRemoteApp.apk`. For iPhone users, open the Web Remote at `remote.redlinevis.site/connect`.
               </p>
             </div>
 
             <div className="p-6 rounded-xl border border-white/10 bg-white/[0.02]">
-              <div className="text-xs font-mono font-bold text-white/50 mb-3">LANGKAH 03</div>
-              <h3 className="font-semibold text-white mb-2">Scan QR & Kontrol</h3>
+              <div className="text-xs font-mono font-bold text-white/50 mb-3">STEP 03</div>
+              <h3 className="font-semibold text-white mb-2">Scan QR & Control</h3>
               <p className="text-xs text-[#a1a1aa] leading-relaxed">
-                Tekan tombol Scan QR Code pada aplikasi dan arahkan kamera ke dashboard PC Anda, atau masukkan IP dan PIN secara manual. Selesai!
+                Tap the Scan QR Code button in the app and point your camera at your PC dashboard, or enter the IP and PIN manually. You're done!
               </p>
             </div>
           </div>
@@ -350,7 +345,7 @@ export default function LandingPage() {
 
         {/* Specifications & License Table */}
         <div id="specs" className="mt-20 pt-16 border-t border-white/[0.08]">
-          <h2 className="text-2xl font-bold text-white tracking-tight mb-6">Spesifikasi Teknis & Lisensi</h2>
+          <h2 className="text-2xl font-bold text-white tracking-tight mb-6">Technical Specs & License</h2>
           
           <div className="rounded-xl border border-white/10 overflow-hidden">
             <table className="w-full text-left text-sm">
@@ -360,25 +355,25 @@ export default function LandingPage() {
                   <td className="py-3 px-4 text-white">Go (Golang 1.21+), Native Win32 / COM, Single Binary ~12 MB</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Aplikasi Android</td>
-                  <td className="py-3 px-4 text-white">Flutter 3.x, Dark Mode Native, Camera QR Scanner</td>
+                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Android App</td>
+                  <td className="py-3 px-4 text-white">Flutter 3.x, Native Dark Mode, Camera QR Scanner</td>
                 </tr>
                 <tr className="bg-white/[0.02]">
                   <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Web Remote Client</td>
                   <td className="py-3 px-4 text-white">Next.js 16 (Static Export), iOS Safari PWA Compatible</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Protokol Jaringan</td>
+                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Network Protocol</td>
                   <td className="py-3 px-4 text-white">HTTPS REST API, WebSocket (H.264 Binary Screen Stream)</td>
                 </tr>
                 <tr className="bg-white/[0.02]">
-                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Keamanan</td>
-                  <td className="py-3 px-4 text-white">Constant-Time PIN Compare, Token Volatile Memory, AES-256 Pairing</td>
+                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Security</td>
+                  <td className="py-3 px-4 text-white">Constant-Time PIN Compare, Volatile Memory Token, AES-256 Pairing</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Hak Cipta & Lisensi</td>
+                  <td className="py-3 px-4 font-mono text-xs text-[#71717a]">Copyright & License</td>
                   <td className="py-3 px-4 text-[#a1a1aa]">
-                    <span className="text-white font-medium">&copy; 2026 kidev.</span> Hak cipta dilindungi undang-undang. Gratis untuk penggunaan pribadi. Dilarang diperjualbelikan atau dimasukkan ke dalam produk/proyek lain tanpa izin.
+                    <span className="text-white font-medium">&copy; 2026 kidev.</span> All rights reserved. Free for personal use. Commercial sale or integration into other products/projects without permission is strictly prohibited.
                   </td>
                 </tr>
               </tbody>
