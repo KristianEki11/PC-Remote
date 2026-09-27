@@ -46,9 +46,10 @@ func isAllowedOrigin(origin string) bool {
 		return true
 	}
 
-	// Allow known deployment origins (Flutter Web PWA on GitHub Pages)
+	// Allow known deployment origins (Flutter Web PWA on GitHub Pages & Custom Domain)
 	allowedDomains := []string{
 		"https://kristianeki11.github.io",
+		"https://remote.redlinevis.site",
 	}
 	for _, domain := range allowedDomains {
 		if origin == domain {
