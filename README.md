@@ -221,4 +221,14 @@ go test -v
 ---
 
 ## 📝 License
-This project is proprietary and for personal use. See [installer/license.txt](installer/license.txt) for more details.
+
+**Copyright (c) 2026 kidev. All Rights Reserved.**
+
+This software is provided for personal, non-commercial use only. You may use this software for your own personal purposes.
+
+**Restrictions:**
+1. You may NOT use this software for commercial purposes.
+2. You may NOT sell, resell, or distribute this software for profit.
+3. You may NOT incorporate this software, in whole or in part, into other projects, products, or software.
+
+See [LICENSE](LICENSE) for more details.
