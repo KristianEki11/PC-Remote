@@ -37,7 +37,10 @@ func runInUserSession(exePath string, args ...string) error {
 	if ret != 0 && sessionID > 0 {
 		slog.Info("Running command directly (interactive session)", "session_id", sessionID, "exePath", exePath, "args", args)
 		cmd := exec.Command(exePath, args...)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    true,
+			CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+		}
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("direct command execution failed: %w — %s", err, string(out))
 		}
@@ -101,7 +104,10 @@ func runInUserSessionStart(exePath string, args ...string) error {
 	if ret != 0 && sessionID > 0 {
 		slog.Info("Running command directly (interactive session)", "session_id", sessionID, "exePath", exePath, "args", args)
 		cmd := exec.Command(exePath, args...)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    true,
+			CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+		}
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("cmd.Start failed: %w", err)
 		}
@@ -422,7 +428,10 @@ func runInUserSessionWithOutput(scriptFile string, outputFile string) (string, e
 	if ret != 0 && sessionID > 0 {
 		slog.Info("Running media status directly (interactive session)", "scriptFile", scriptFile)
 		cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptFile)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    true,
+			CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+		}
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("direct run failed: %w - %s", err, string(out))

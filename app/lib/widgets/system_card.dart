@@ -37,11 +37,24 @@ class _SystemCardState extends State<SystemCard> {
   }
 
   Future<void> _updateBrightness(double val) async {
+    // Snap to 50% if within ±3% range (47.0 - 53.0)
+    if (val >= 47.0 && val <= 53.0) {
+      val = 50.0;
+    }
     setState(() {
-      _brightnessLevel = val;
+      _brightnessLevel = val.clamp(0.0, 100.0);
     });
     HapticFeedback.selectionClick();
-    await ApiService.setBrightness(val);
+    await ApiService.setBrightness(_brightnessLevel);
+  }
+
+  void _stepBrightness(double delta) {
+    double next = _brightnessLevel + delta;
+    if ((_brightnessLevel < 50.0 && next >= 48.0 && next <= 52.0) ||
+        (_brightnessLevel > 50.0 && next >= 48.0 && next <= 52.0)) {
+      next = 50.0;
+    }
+    _updateBrightness(next.clamp(0.0, 100.0));
   }
 
   Future<void> _executeAction(String action, Future<bool> Function() apiCall) async {
@@ -302,38 +315,97 @@ class _SystemCardState extends State<SystemCard> {
                         ),
                       ],
                     ),
-                    _isLoadingBrightness
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            isDimmed
-                                ? '$displayPct% (OLED -${((50 - _brightnessLevel) * 2).toInt()}%)'
-                                : '$displayPct% (HW ${((_brightnessLevel - 50) * 2).toInt()}%)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDimmed ? const Color(0xFF818CF8) : AppColors.primary,
+                    Row(
+                      children: [
+                        if (!_isLoadingBrightness && _brightnessLevel != 50.0) ...[
+                          GestureDetector(
+                            onTap: () => _updateBrightness(50.0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.restart_alt_rounded,
+                                    size: 12,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '50%',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 6),
+                        ],
+                        _isLoadingBrightness
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(
+                                isDimmed
+                                    ? '$displayPct% (OLED -${((50 - _brightnessLevel) * 2).toInt()}%)'
+                                    : '$displayPct% (HW ${((_brightnessLevel - 50) * 2).toInt()}%)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDimmed ? const Color(0xFF818CF8) : AppColors.primary,
+                                ),
+                              ),
+                      ],
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(
-                      Icons.brightness_low,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    // Button Minus 5%
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _stepBrightness(-5.0),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.remove_rounded,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 6.0,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9.0),
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 18.0),
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
                           activeTrackColor: isDimmed ? const Color(0xFF818CF8) : const Color(0xFFFBBF24),
                           inactiveTrackColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
                         ),
@@ -343,6 +415,10 @@ class _SystemCardState extends State<SystemCard> {
                           max: 100,
                           divisions: 100,
                           onChanged: (val) {
+                            // Magnetic snap to 50% during drag
+                            if (val >= 47.0 && val <= 53.0) {
+                              val = 50.0;
+                            }
                             setState(() {
                               _brightnessLevel = val;
                             });
@@ -351,10 +427,29 @@ class _SystemCardState extends State<SystemCard> {
                         ),
                       ),
                     ),
-                    Icon(
-                      Icons.brightness_high,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    const SizedBox(width: 4),
+                    // Button Plus 5%
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _stepBrightness(5.0),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.add_rounded,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

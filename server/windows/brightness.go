@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 var (
@@ -98,8 +99,12 @@ func (RealAPI) SetBrightness(level float64) error {
 
 // getHardwareBrightness reads the current hardware brightness (0-100) via WMI.
 func getHardwareBrightness() (float64, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
 		"(Get-WmiObject -Namespace root\\wmi -Class WmiMonitorBrightness).CurrentBrightness")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, err
@@ -123,6 +128,10 @@ func setHardwareBrightness(level int) error {
 	}
 
 	psScript := fmt.Sprintf("(Get-WmiObject -Namespace root\\wmi -Class WmiMonitorBrightnessMethods).WmiSetBrightness(0, %d)", level)
-	cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", psScript)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
 	return cmd.Run()
 }
