@@ -334,4 +334,6 @@ func CancelShutdown() error                          { return API.CancelShutdown
 func Sleep() error                                   { return API.Sleep() }
 func Restart() error                                 { return API.Restart() }
 func TurnOffDisplay() error                          { return API.TurnOffDisplay() }
+func GetBrightness() (float64, error)                 { return API.GetBrightness() }
+func SetBrightness(level float64) error               { return API.SetBrightness(level) }
 func DebugListAllDevices() ([]string, error)         { return API.DebugListAllDevices() }

@@ -300,3 +300,50 @@ func SystemDisplayOffHandler(w http.ResponseWriter, r *http.Request) {
 
 	sendJSON(w, http.StatusOK, map[string]any{"success": true})
 }
+
+// BrightnessRequest represents the JSON body for setting brightness.
+type BrightnessRequest struct {
+	Level float64 `json:"level"`
+}
+
+// SystemBrightnessHandler handles GET and POST /system/brightness
+func SystemBrightnessHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		val, err := winapi.GetBrightness()
+		if err != nil {
+			slog.Error("GetBrightness failed", "error", err)
+			sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: err.Error()})
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]any{
+			"brightness": val,
+		})
+
+	case http.MethodPost:
+		var req BrightnessRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendJSON(w, http.StatusBadRequest, ErrorBody{Error: "invalid JSON body"})
+			return
+		}
+
+		if req.Level < 0.0 || req.Level > 100.0 {
+			sendJSON(w, http.StatusBadRequest, ErrorBody{Error: "level must be between 0 and 100"})
+			return
+		}
+
+		if err := winapi.SetBrightness(req.Level); err != nil {
+			slog.Error("SetBrightness failed", "error", err)
+			sendJSON(w, http.StatusInternalServerError, ErrorBody{Error: err.Error()})
+			return
+		}
+
+		sendJSON(w, http.StatusOK, map[string]any{
+			"success":    true,
+			"brightness": req.Level,
+		})
+
+	default:
+		sendJSON(w, http.StatusMethodNotAllowed, ErrorBody{Error: "method not allowed"})
+	}
+}

@@ -158,6 +158,12 @@ func (m *TestMockAPI) TurnOffDisplay() error {
 	}
 	return nil
 }
+func (m *TestMockAPI) GetBrightness() (float64, error) {
+	return 60.0, nil
+}
+func (m *TestMockAPI) SetBrightness(level float64) error {
+	return nil
+}
 func (m *TestMockAPI) DebugListAllDevices() ([]string, error) {
 	if m.DebugListAllDevicesFunc != nil {
 		return m.DebugListAllDevicesFunc()
@@ -669,5 +675,34 @@ func TestSystemDisplayOffHandler_WrongMethod(t *testing.T) {
 	SystemDisplayOffHandler(rr, req)
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Errorf("expected 405, got %d", rr.Code)
+	}
+}
+
+func TestSystemBrightnessHandler_Get(t *testing.T) {
+	req := httptest.NewRequest("GET", "/system/brightness", nil)
+	rr := httptest.NewRecorder()
+	SystemBrightnessHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+}
+
+func TestSystemBrightnessHandler_PostValid(t *testing.T) {
+	body, _ := json.Marshal(BrightnessRequest{Level: 75.0})
+	req := httptest.NewRequest("POST", "/system/brightness", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	SystemBrightnessHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+}
+
+func TestSystemBrightnessHandler_PostInvalid(t *testing.T) {
+	body, _ := json.Marshal(BrightnessRequest{Level: 150.0})
+	req := httptest.NewRequest("POST", "/system/brightness", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	SystemBrightnessHandler(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rr.Code)
 	}
 }

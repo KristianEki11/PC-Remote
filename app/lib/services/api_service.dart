@@ -596,5 +596,14 @@ class ApiService {
   static Future<bool> sleepPc()     => _post('/system/sleep');
   static Future<bool> restartPc()   => _post('/system/restart');
   static Future<bool> displayOff()  => _post('/system/display/off');
+  static Future<double?> getBrightness() async {
+    final data = await _get('/system/brightness', timeout: const Duration(seconds: 5), showSnackBar: false);
+    if (data != null && data['brightness'] != null) {
+      return (data['brightness'] as num).toDouble();
+    }
+    return null;
+  }
+  static Future<bool> setBrightness(double level) =>
+      _post('/system/brightness', body: {'level': level});
   static Future<bool> shutdownPc({int delaySeconds = 0}) => _post('/system/shutdown', body: {'delay_seconds': delaySeconds});
 }

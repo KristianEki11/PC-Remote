@@ -3,6 +3,7 @@ package windows
 import (
 	"log/slog"
 	"runtime"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -12,6 +13,9 @@ import (
 var (
 	overlayHwnd      win.HWND
 	isOverlayRunning bool
+	overlayMutex     sync.Mutex
+	currentAlpha     byte = 255
+	isClickThrough   bool = false
 )
 
 // Win32 cursor type IDs for SetSystemCursor
@@ -39,11 +43,23 @@ var allCursorIDs = []uintptr{
 }
 
 var (
-	user32                   = syscall.NewLazyDLL("user32.dll")
-	procCreateCursor         = user32.NewProc("CreateCursor")
-	procSetSystemCursor      = user32.NewProc("SetSystemCursor")
-	procSystemParametersInfo = user32.NewProc("SystemParametersInfoW")
-	procCopyCursor           = user32.NewProc("CopyIcon") // CopyCursor is a C macro for CopyIcon
+	user32                       = syscall.NewLazyDLL("user32.dll")
+	procCreateCursor             = user32.NewProc("CreateCursor")
+	procSetSystemCursor          = user32.NewProc("SetSystemCursor")
+	procSystemParametersInfo     = user32.NewProc("SystemParametersInfoW")
+	procCopyCursor               = user32.NewProc("CopyIcon") // CopyCursor is a C macro for CopyIcon
+	procSetLayeredWindowAttributes = user32.NewProc("SetLayeredWindowAttributes")
+	procSetWindowLong            = user32.NewProc("SetWindowLongW")
+	procGetWindowLong            = user32.NewProc("GetWindowLongW")
+)
+
+const (
+	gwlExStyle        = uint32(0xFFFFFFEC) // -20 in two's complement
+	wsExLayered       = 0x00080000
+	wsExTransparent   = 0x00000020
+	lwaAlpha          = 0x00000002
+	wmUserSetAlpha    = win.WM_USER + 101
+	wmUserClose       = win.WM_USER + 102
 )
 
 // createBlankCursor creates a fully transparent 32x32 cursor in memory.
@@ -65,7 +81,6 @@ func createBlankCursor() win.HCURSOR {
 }
 
 // hideSystemCursors replaces ALL system cursor types with a blank cursor.
-// This works system-wide regardless of which window has focus.
 func hideSystemCursors() {
 	blankCursor := createBlankCursor()
 	if blankCursor == 0 {
@@ -74,8 +89,6 @@ func hideSystemCursors() {
 	}
 
 	for _, id := range allCursorIDs {
-		// SetSystemCursor destroys the cursor handle passed to it,
-		// so we must create a fresh copy for each call.
 		copied, _, _ := procCopyCursor.Call(uintptr(blankCursor))
 		if copied != 0 {
 			procSetSystemCursor.Call(copied, id)
@@ -90,17 +103,50 @@ func restoreSystemCursors() {
 	slog.Info("System cursors restored")
 }
 
-// ShowBlackOverlay opens a full-screen black window to simulate display off.
+// ShowBlackOverlay opens a full-screen black window to simulate display off (100% black, intercepts input).
 func ShowBlackOverlay() {
-	if isOverlayRunning {
-		return
-	}
-	isOverlayRunning = true
-	go showBlackOverlayThread()
+	SetOverlayOpacity(255, false)
 }
 
-// showBlackOverlayThread must run on its own OS-locked thread for the message loop.
-func showBlackOverlayThread() {
+// SetOverlayOpacity updates or shows the overlay with a given alpha (0-255).
+// clickThrough: true allows mouse/keyboard events to pass straight through the window.
+func SetOverlayOpacity(alpha byte, clickThrough bool) {
+	overlayMutex.Lock()
+	defer overlayMutex.Unlock()
+
+	currentAlpha = alpha
+	isClickThrough = clickThrough
+
+	if alpha == 0 {
+		if overlayHwnd != 0 {
+			win.PostMessage(overlayHwnd, wmUserClose, 0, 0)
+		}
+		return
+	}
+
+	if overlayHwnd != 0 {
+		// Update running window
+		win.PostMessage(overlayHwnd, wmUserSetAlpha, uintptr(alpha), 0)
+		return
+	}
+
+	if !isOverlayRunning {
+		isOverlayRunning = true
+		go showOverlayThread(alpha, clickThrough)
+	}
+}
+
+// CloseOverlay closes the overlay if active.
+func CloseOverlay() {
+	overlayMutex.Lock()
+	defer overlayMutex.Unlock()
+
+	if overlayHwnd != 0 {
+		win.PostMessage(overlayHwnd, wmUserClose, 0, 0)
+	}
+}
+
+func showOverlayThread(initAlpha byte, clickThrough bool) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -122,25 +168,40 @@ func showBlackOverlayThread() {
 	w := win.GetSystemMetrics(win.SM_CXVIRTUALSCREEN)
 	h := win.GetSystemMetrics(win.SM_CYVIRTUALSCREEN)
 
-	overlayHwnd = win.CreateWindowEx(
-		win.WS_EX_TOPMOST|win.WS_EX_TOOLWINDOW,
+	exStyle := uint32(win.WS_EX_TOPMOST | win.WS_EX_TOOLWINDOW | wsExLayered)
+	if clickThrough {
+		exStyle |= wsExTransparent
+	}
+
+	hwnd := win.CreateWindowEx(
+		exStyle,
 		className,
 		syscall.StringToUTF16Ptr("BlackOverlay"),
-		win.WS_POPUP|win.WS_VISIBLE,
+		win.WS_POPUP | win.WS_VISIBLE,
 		x, y, w, h,
 		0, 0, hInstance, nil,
 	)
 
-	if overlayHwnd == 0 {
+	if hwnd == 0 {
 		slog.Error("Failed to create overlay window")
+		overlayMutex.Lock()
 		isOverlayRunning = false
+		overlayMutex.Unlock()
 		return
 	}
 
-	// Hide ALL system cursors (system-wide, works even without focus)
-	hideSystemCursors()
+	overlayMutex.Lock()
+	overlayHwnd = hwnd
+	overlayMutex.Unlock()
 
-	slog.Info("Native overlay window created, cursors hidden")
+	// Apply initial alpha
+	procSetLayeredWindowAttributes.Call(uintptr(hwnd), 0, uintptr(initAlpha), uintptr(lwaAlpha))
+
+	if !clickThrough && initAlpha == 255 {
+		hideSystemCursors()
+	}
+
+	slog.Info("Native overlay window created", "alpha", initAlpha, "clickThrough", clickThrough)
 
 	var msg win.MSG
 	for win.GetMessage(&msg, 0, 0, 0) != 0 {
@@ -148,24 +209,50 @@ func showBlackOverlayThread() {
 		win.DispatchMessage(&msg)
 	}
 
-	// Restore cursors when overlay closes
 	restoreSystemCursors()
 
+	overlayMutex.Lock()
 	isOverlayRunning = false
 	overlayHwnd = 0
-}
-
-func closeOverlay() {
-	if overlayHwnd != 0 {
-		win.PostMessage(overlayHwnd, win.WM_CLOSE, 0, 0)
-	}
+	overlayMutex.Unlock()
 }
 
 func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
-	case win.WM_KEYDOWN, win.WM_LBUTTONDOWN, win.WM_RBUTTONDOWN, win.WM_MBUTTONDOWN:
-		win.PostMessage(hwnd, win.WM_CLOSE, 0, 0)
+	case wmUserSetAlpha:
+		alpha := byte(wParam)
+		overlayMutex.Lock()
+		clickThrough := isClickThrough
+		overlayMutex.Unlock()
+
+		// Update style for click-through if necessary
+		curEx, _, _ := procGetWindowLong.Call(uintptr(hwnd), uintptr(gwlExStyle))
+		newEx := curEx | wsExLayered
+		if clickThrough {
+			newEx |= wsExTransparent
+		} else {
+			newEx &^= wsExTransparent
+		}
+		if newEx != curEx {
+			procSetWindowLong.Call(uintptr(hwnd), uintptr(gwlExStyle), newEx)
+		}
+
+		procSetLayeredWindowAttributes.Call(uintptr(hwnd), 0, uintptr(alpha), uintptr(lwaAlpha))
 		return 0
+
+	case wmUserClose:
+		win.DestroyWindow(hwnd)
+		return 0
+
+	case win.WM_KEYDOWN, win.WM_LBUTTONDOWN, win.WM_RBUTTONDOWN, win.WM_MBUTTONDOWN:
+		overlayMutex.Lock()
+		isFullBlack := !isClickThrough && currentAlpha == 255
+		overlayMutex.Unlock()
+		if isFullBlack {
+			win.DestroyWindow(hwnd)
+		}
+		return 0
+
 	case win.WM_DESTROY:
 		win.PostQuitMessage(0)
 		return 0

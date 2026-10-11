@@ -32,6 +32,8 @@ type APIInterface interface {
 	Sleep() error
 	Restart() error
 	TurnOffDisplay() error
+	GetBrightness() (float64, error)
+	SetBrightness(level float64) error
 	DebugListAllDevices() ([]string, error)
 }
 

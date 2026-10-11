@@ -155,6 +155,7 @@ func main() {
 	protectedMux.HandleFunc("/system/sleep", handlers.SystemSleepHandler)
 	protectedMux.HandleFunc("/system/restart", handlers.SystemRestartHandler)
 	protectedMux.HandleFunc("/system/display/off", handlers.SystemDisplayOffHandler)
+	protectedMux.HandleFunc("/system/brightness", handlers.SystemBrightnessHandler)
 	protectedMux.HandleFunc("/system/pin", handlers.HandleChangePIN)
 
 	// Apply auth middleware to protected endpoints

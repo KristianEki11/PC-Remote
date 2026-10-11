@@ -97,6 +97,16 @@ func (MockAPI) TurnOffDisplay() error {
 	return nil
 }
 
+func (MockAPI) GetBrightness() (float64, error) {
+	log.Println("MOCK: GetBrightness called")
+	return 50.0, nil
+}
+
+func (MockAPI) SetBrightness(level float64) error {
+	log.Printf("MOCK: SetBrightness called with %f", level)
+	return nil
+}
+
 func (MockAPI) DebugListAllDevices() ([]string, error) {
 	log.Println("MOCK: DebugListAllDevices called")
 	return []string{"[MOCK] Speakers"}, nil
@@ -128,4 +138,6 @@ func CancelShutdown() error                          { return API.CancelShutdown
 func Sleep() error                                   { return API.Sleep() }
 func Restart() error                                 { return API.Restart() }
 func TurnOffDisplay() error                          { return API.TurnOffDisplay() }
+func GetBrightness() (float64, error)                 { return API.GetBrightness() }
+func SetBrightness(level float64) error               { return API.SetBrightness(level) }
 func DebugListAllDevices() ([]string, error)         { return API.DebugListAllDevices() }

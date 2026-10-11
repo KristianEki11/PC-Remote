@@ -15,6 +15,34 @@ class SystemCard extends StatefulWidget {
 
 class _SystemCardState extends State<SystemCard> {
   bool _isProcessing = false;
+  double _brightnessLevel = 50.0;
+  bool _isLoadingBrightness = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBrightness();
+  }
+
+  Future<void> _fetchBrightness() async {
+    final val = await ApiService.getBrightness();
+    if (mounted && val != null) {
+      setState(() {
+        _brightnessLevel = val.clamp(0.0, 100.0);
+        _isLoadingBrightness = false;
+      });
+    } else if (mounted) {
+      setState(() => _isLoadingBrightness = false);
+    }
+  }
+
+  Future<void> _updateBrightness(double val) async {
+    setState(() {
+      _brightnessLevel = val;
+    });
+    HapticFeedback.selectionClick();
+    await ApiService.setBrightness(val);
+  }
 
   Future<void> _executeAction(String action, Future<bool> Function() apiCall) async {
     HapticFeedback.mediumImpact();
@@ -230,11 +258,111 @@ class _SystemCardState extends State<SystemCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDimmed = _brightnessLevel < 50.0;
+    final displayPct = _brightnessLevel.toInt();
+
     return SharedCard(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const CardHeader(icon: Icons.settings_rounded, title: 'Kontrol Sistem'),
           const SizedBox(height: 16),
+
+          // Brightness Control Section
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppClays.card(),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isDimmed
+                              ? (_brightnessLevel == 0 ? Icons.brightness_2 : Icons.nightlight_round)
+                              : Icons.wb_sunny_rounded,
+                          size: 20,
+                          color: isDimmed ? const Color(0xFF818CF8) : const Color(0xFFFBBF24),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Kecerahan Layar',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                    _isLoadingBrightness
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            isDimmed
+                                ? '$displayPct% (OLED -${((50 - _brightnessLevel) * 2).toInt()}%)'
+                                : '$displayPct% (HW ${((_brightnessLevel - 50) * 2).toInt()}%)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDimmed ? const Color(0xFF818CF8) : AppColors.primary,
+                            ),
+                          ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.brightness_low,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 6.0,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9.0),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 18.0),
+                          activeTrackColor: isDimmed ? const Color(0xFF818CF8) : const Color(0xFFFBBF24),
+                          inactiveTrackColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
+                        ),
+                        child: Slider(
+                          value: _brightnessLevel,
+                          min: 0,
+                          max: 100,
+                          divisions: 100,
+                          onChanged: (val) {
+                            setState(() {
+                              _brightnessLevel = val;
+                            });
+                          },
+                          onChangeEnd: _updateBrightness,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.brightness_high,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           Column(
             children: [
               Row(
