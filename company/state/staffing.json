@@ -1,0 +1,432 @@
+{
+  "ok": true,
+  "profile": "LEAN",
+  "archetypes": [
+    "desktop-windows",
+    "android-app"
+  ],
+  "mission": "ENHANCE",
+  "flags": [
+    "desktop",
+    "installable",
+    "mobile",
+    "ui"
+  ],
+  "clusters": {
+    "base": 3,
+    "fe": 3,
+    "be": 3,
+    "app": 3,
+    "fe_only": 0
+  },
+  "totals": {
+    "board": 4,
+    "head": 8,
+    "worker": 20,
+    "staff": 1,
+    "total": 33
+  },
+  "raw_total": 33,
+  "suggested_cap": 37,
+  "max_concurrent": 6,
+  "flat": false,
+  "trimmed": [],
+  "trim_steps": 0,
+  "playbooks": [
+    "accessibility-i18n",
+    "architecture",
+    "back-office",
+    "board-council",
+    "bug-response",
+    "design-system",
+    "desktop-windows",
+    "devops-platform",
+    "docs-writing",
+    "mobile-android",
+    "pentest-sandbox",
+    "performance-reliability",
+    "privacy-compliance",
+    "product-management",
+    "prompt-engineering",
+    "qa-testing",
+    "release-integration",
+    "research-intel",
+    "security-appsec",
+    "templates",
+    "ui-design",
+    "ux-design"
+  ],
+  "agents": [
+    {
+      "id": "board-chair",
+      "role": "ATLAS (Chair)",
+      "kind": "board",
+      "div": "Board",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "board-council",
+      "playbook_extra": []
+    },
+    {
+      "id": "board-contrarian",
+      "role": "Contrarian",
+      "kind": "board",
+      "div": "Board",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "board-council",
+      "playbook_extra": []
+    },
+    {
+      "id": "board-executor",
+      "role": "Executor",
+      "kind": "board",
+      "div": "Board",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "board-council",
+      "playbook_extra": []
+    },
+    {
+      "id": "board-outsider",
+      "role": "Outsider",
+      "kind": "board",
+      "div": "Board",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "board-council",
+      "playbook_extra": []
+    },
+    {
+      "id": "head-strategy",
+      "role": "Head of Strategy & Research (CPO+CRO)",
+      "kind": "head",
+      "div": "Strategy & Research",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "product-management",
+      "playbook_extra": [
+        "research-intel"
+      ]
+    },
+    {
+      "id": "spec-writer",
+      "role": "Spec Writer",
+      "kind": "worker",
+      "div": "Strategy & Product",
+      "tier": "flash",
+      "ws": "inherit",
+      "playbook": "product-management",
+      "playbook_extra": []
+    },
+    {
+      "id": "explorer-1",
+      "role": "Explorer (read-only)",
+      "kind": "worker",
+      "div": "Research & Intelligence",
+      "tier": "flash",
+      "ws": "inherit",
+      "playbook": "research-intel",
+      "playbook_extra": []
+    },
+    {
+      "id": "explorer-2",
+      "role": "Explorer (read-only)",
+      "kind": "worker",
+      "div": "Research & Intelligence",
+      "tier": "flash",
+      "ws": "inherit",
+      "playbook": "research-intel",
+      "playbook_extra": []
+    },
+    {
+      "id": "chief-architect",
+      "role": "Chief Architect",
+      "kind": "head",
+      "div": "Architecture & Decisions",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "architecture",
+      "playbook_extra": []
+    },
+    {
+      "id": "head-design",
+      "role": "Head of Design (UX+UI)",
+      "kind": "head",
+      "div": "Design",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "ux-design",
+      "playbook_extra": [
+        "ui-design",
+        "design-system"
+      ]
+    },
+    {
+      "id": "ux-designer",
+      "role": "UX Designer (IA, flow, wireframe)",
+      "kind": "worker",
+      "div": "Design · UX",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "ux-design",
+      "playbook_extra": [
+        "accessibility-i18n"
+      ]
+    },
+    {
+      "id": "ui-designer",
+      "role": "UI Designer (visual, hi-fi prototype)",
+      "kind": "worker",
+      "div": "Design · UI",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "ui-design",
+      "playbook_extra": [
+        "design-system"
+      ]
+    },
+    {
+      "id": "design-critic",
+      "role": "Design Critic (UX+UI review)",
+      "kind": "worker",
+      "div": "Design",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "ux-design",
+      "playbook_extra": [
+        "ui-design"
+      ]
+    },
+    {
+      "id": "vp-mobile",
+      "role": "VP Mobile (Android)",
+      "kind": "head",
+      "div": "Engineering · Mobile",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "mobile-android",
+      "playbook_extra": []
+    },
+    {
+      "id": "vp-desktop",
+      "role": "VP Desktop (Windows)",
+      "kind": "head",
+      "div": "Engineering · Desktop",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "desktop-windows",
+      "playbook_extra": []
+    },
+    {
+      "id": "builder-android-c1",
+      "role": "Builder Android",
+      "kind": "worker",
+      "div": "Engineering · Mobile",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "mobile-android",
+      "playbook_extra": [
+        "design-system",
+        "accessibility-i18n"
+      ]
+    },
+    {
+      "id": "builder-android-c2",
+      "role": "Builder Android",
+      "kind": "worker",
+      "div": "Engineering · Mobile",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "mobile-android",
+      "playbook_extra": [
+        "design-system",
+        "accessibility-i18n"
+      ]
+    },
+    {
+      "id": "builder-android-c3",
+      "role": "Builder Android",
+      "kind": "worker",
+      "div": "Engineering · Mobile",
+      "tier": "flash",
+      "ws": "branch",
+      "playbook": "mobile-android",
+      "playbook_extra": [
+        "design-system",
+        "accessibility-i18n"
+      ]
+    },
+    {
+      "id": "builder-desktop-c1",
+      "role": "Builder Desktop",
+      "kind": "worker",
+      "div": "Engineering · Desktop",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "desktop-windows",
+      "playbook_extra": [
+        "design-system",
+        "accessibility-i18n"
+      ]
+    },
+    {
+      "id": "builder-desktop-c2",
+      "role": "Builder Desktop",
+      "kind": "worker",
+      "div": "Engineering · Desktop",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "desktop-windows",
+      "playbook_extra": [
+        "design-system",
+        "accessibility-i18n"
+      ]
+    },
+    {
+      "id": "builder-desktop-c3",
+      "role": "Builder Desktop",
+      "kind": "worker",
+      "div": "Engineering · Desktop",
+      "tier": "flash",
+      "ws": "branch",
+      "playbook": "desktop-windows",
+      "playbook_extra": [
+        "design-system",
+        "accessibility-i18n"
+      ]
+    },
+    {
+      "id": "vp-platform",
+      "role": "VP Platform & DevOps",
+      "kind": "head",
+      "div": "Platform & DevOps",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "devops-platform",
+      "playbook_extra": []
+    },
+    {
+      "id": "vp-qa",
+      "role": "VP QA & Verification",
+      "kind": "head",
+      "div": "QA & Verification",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "qa-testing",
+      "playbook_extra": [
+        "bug-response",
+        "performance-reliability"
+      ]
+    },
+    {
+      "id": "tester-1",
+      "role": "Tester (independen)",
+      "kind": "worker",
+      "div": "QA & Verification",
+      "tier": "flash",
+      "ws": "branch",
+      "playbook": "qa-testing",
+      "playbook_extra": [
+        "accessibility-i18n",
+        "performance-reliability"
+      ]
+    },
+    {
+      "id": "tester-2",
+      "role": "Tester (independen)",
+      "kind": "worker",
+      "div": "QA & Verification",
+      "tier": "flash",
+      "ws": "branch",
+      "playbook": "qa-testing",
+      "playbook_extra": [
+        "accessibility-i18n",
+        "performance-reliability"
+      ]
+    },
+    {
+      "id": "critic-code",
+      "role": "Critic (code review)",
+      "kind": "worker",
+      "div": "QA & Verification",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "qa-testing",
+      "playbook_extra": []
+    },
+    {
+      "id": "security-auditor",
+      "role": "Security Auditor (AppSec, dependency, secrets)",
+      "kind": "worker",
+      "div": "Security & Compliance",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "security-appsec",
+      "playbook_extra": [
+        "pentest-sandbox",
+        "privacy-compliance"
+      ]
+    },
+    {
+      "id": "swat-1",
+      "role": "SWAT (Investigator/Fixer)",
+      "kind": "worker",
+      "div": "Bug Response",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "bug-response",
+      "playbook_extra": []
+    },
+    {
+      "id": "swat-2",
+      "role": "SWAT (Investigator/Fixer)",
+      "kind": "worker",
+      "div": "Bug Response",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "bug-response",
+      "playbook_extra": []
+    },
+    {
+      "id": "release-manager",
+      "role": "Release Manager (Integration)",
+      "kind": "head",
+      "div": "Release & Docs",
+      "tier": "pro",
+      "ws": "branch",
+      "playbook": "release-integration",
+      "playbook_extra": []
+    },
+    {
+      "id": "docs-writer",
+      "role": "Docs Writer",
+      "kind": "worker",
+      "div": "Release & Docs",
+      "tier": "flash",
+      "ws": "branch",
+      "playbook": "docs-writing",
+      "playbook_extra": []
+    },
+    {
+      "id": "janitor",
+      "role": "Janitor (Office Boy)",
+      "kind": "staff",
+      "div": "Operations & Facilities",
+      "tier": "flash",
+      "ws": "inherit",
+      "playbook": "back-office",
+      "playbook_extra": []
+    },
+    {
+      "id": "auditor",
+      "role": "Auditor (verifikasi ulang bukti)",
+      "kind": "worker",
+      "div": "Internal Audit",
+      "tier": "pro",
+      "ws": "inherit",
+      "playbook": "qa-testing",
+      "playbook_extra": []
+    }
+  ]
+}

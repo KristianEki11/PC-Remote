@@ -1,0 +1,35 @@
+{
+  "project_name": "pc-remote",
+  "mission": "ENHANCE",
+  "archetypes": [
+    "desktop-windows",
+    "android-app"
+  ],
+  "profile": "LEAN",
+  "flags": [
+    "desktop",
+    "installable",
+    "mobile",
+    "ui"
+  ],
+  "clusters": {
+    "base": 3,
+    "fe": 3,
+    "be": 3,
+    "app": 3,
+    "fe_only": 0
+  },
+  "max_total_spawns": 37,
+  "max_concurrent": 6,
+  "design_language": {
+    "android": "material",
+    "windows": "fluent"
+  },
+  "ui_language": "id",
+  "integrity_mode": "development",
+  "engine": "native",
+  "skill_dir": "C:\\Users\\KristianEki\\.gemini\\config\\skills\\agent-company",
+  "phases": "P0 P1 P2 P3 P4 P5 P6 P7",
+  "staffing_total": 33,
+  "created": "2026-10-11"
+}
