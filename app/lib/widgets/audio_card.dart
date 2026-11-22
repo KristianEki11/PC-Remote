@@ -46,7 +46,10 @@ class _AudioCardState extends State<AudioCard> {
 
   void _startPolling() {
     _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (!mounted) return;
+      if (!mounted ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        return;
+      }
       final appState = Provider.of<AppState>(context, listen: false);
       if (appState.isConnected && !_isDragging) {
         final audioState = Provider.of<AudioState>(context, listen: false);
@@ -88,7 +91,9 @@ class _AudioCardState extends State<AudioCard> {
     if (!success && mounted) {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal mengubah volume master'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Gagal mengubah volume master'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -100,7 +105,9 @@ class _AudioCardState extends State<AudioCard> {
     if (!success && mounted) {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal mengubah mute perangkat'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Gagal mengubah mute perangkat'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -112,7 +119,9 @@ class _AudioCardState extends State<AudioCard> {
     if (!success && mounted) {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal mengubah volume perangkat'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Gagal mengubah volume perangkat'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -133,11 +142,16 @@ class _AudioCardState extends State<AudioCard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.volume_off_rounded, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+            Icon(Icons.volume_off_rounded,
+                size: 64,
+                color: AppColors.textSecondary.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             const Text(
               'Mixer Audio Offline',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -161,7 +175,9 @@ class _AudioCardState extends State<AudioCard> {
                 CardHeader(
                   icon: Icons.volume_up_rounded,
                   title: 'Volume Master',
-                  trailing: (isLoadingMaster || isLoadingDevices) ? const CardLoadingIndicator() : null,
+                  trailing: (isLoadingMaster || isLoadingDevices)
+                      ? const CardLoadingIndicator()
+                      : null,
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -178,8 +194,12 @@ class _AudioCardState extends State<AudioCard> {
                           boxShadow: AppClays.button(),
                         ),
                         child: Icon(
-                          isMasterMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                          color: isMasterMuted ? AppColors.error : AppColors.primary,
+                          isMasterMuted
+                              ? Icons.volume_off_rounded
+                              : Icons.volume_up_rounded,
+                          color: isMasterMuted
+                              ? AppColors.error
+                              : AppColors.primary,
                           size: 28,
                         ),
                       ),
@@ -189,8 +209,10 @@ class _AudioCardState extends State<AudioCard> {
                       child: SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 6.0,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 20.0),
+                          thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 10.0),
+                          overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 20.0),
                           activeTrackColor: AppColors.primary,
                           inactiveTrackColor: AppColors.surfaceLight,
                         ),
@@ -241,7 +263,9 @@ class _AudioCardState extends State<AudioCard> {
                     child: Center(
                       child: Text(
                         'Tidak ada perangkat audio ditemukan',
-                        style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.7)),
+                        style: TextStyle(
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.7)),
                       ),
                     ),
                   )
@@ -267,7 +291,8 @@ class _AudioCardState extends State<AudioCard> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.audiotrack_rounded, size: 16, color: AppColors.textSecondary),
+                                const Icon(Icons.audiotrack_rounded,
+                                    size: 16, color: AppColors.textSecondary),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -282,10 +307,15 @@ class _AudioCardState extends State<AudioCard> {
                                   ),
                                 ),
                                 GestureDetector(
-                                  onTap: () => _toggleDeviceMute(deviceId, !isMuted),
+                                  onTap: () =>
+                                      _toggleDeviceMute(deviceId, !isMuted),
                                   child: Icon(
-                                    isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                                    color: isMuted ? Colors.redAccent : AppColors.textSecondary,
+                                    isMuted
+                                        ? Icons.volume_off_rounded
+                                        : Icons.volume_up_rounded,
+                                    color: isMuted
+                                        ? Colors.redAccent
+                                        : AppColors.textSecondary,
                                     size: 20,
                                   ),
                                 ),
@@ -298,10 +328,14 @@ class _AudioCardState extends State<AudioCard> {
                                   child: SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
                                       trackHeight: 4.0,
-                                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
-                                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 16.0),
+                                      thumbShape: const RoundSliderThumbShape(
+                                          enabledThumbRadius: 8.0),
+                                      overlayShape:
+                                          const RoundSliderOverlayShape(
+                                              overlayRadius: 16.0),
                                       activeTrackColor: Colors.blueAccent,
-                                      inactiveTrackColor: AppColors.surfaceLight,
+                                      inactiveTrackColor:
+                                          AppColors.surfaceLight,
                                     ),
                                     child: Slider(
                                       value: level,
@@ -310,9 +344,11 @@ class _AudioCardState extends State<AudioCard> {
                                       divisions: 100,
                                       onChanged: (val) {
                                         setState(() => _isDragging = true);
-                                        audioState.updateDeviceVolumeLocally(deviceId, val);
+                                        audioState.updateDeviceVolumeLocally(
+                                            deviceId, val);
                                       },
-                                      onChangeEnd: (val) => _setDeviceVolume(deviceId, val),
+                                      onChangeEnd: (val) =>
+                                          _setDeviceVolume(deviceId, val),
                                     ),
                                   ),
                                 ),

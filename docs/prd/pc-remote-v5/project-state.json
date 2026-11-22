@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0",
+  "idea": "PC Remote v5.0: Native Windows Desktop App + Zero Re-Pairing Smart Roaming Tailscale + 24/7 Smartwatch-Style Android Companion Service & Media Notification + All-In Rust Cutover",
+  "slug": "pc-remote-v5",
+  "language": "id",
+  "docs": ["PRD", "TECH-SPEC"],
+  "interview": {
+    "rounds": [
+      {
+        "round": 1,
+        "questions": [
+          {
+            "id": "q1",
+            "area": "persona",
+            "text": "Bagaimana arah untuk server Go yang lama vs server Rust baru?",
+            "type": "single",
+            "options": [
+              "Fokus selesaikan & rilis Server Rust + Flutter + Tailscale",
+              "Pertahankan Go server juga",
+              "Ganti sepenuhnya Go server dengan Rust sekarang"
+            ],
+            "allow_other": true,
+            "skippable": true
+          },
+          {
+            "id": "q2",
+            "area": "must_haves",
+            "text": "Untuk arsitektur proses Windows di Server Rust, mode mana yang menjadi target?",
+            "type": "single",
+            "options": [
+              "User-session tray app setelah login Windows",
+              "Windows Service (Session 0) + user-session agent"
+            ],
+            "allow_other": true,
+            "skippable": true
+          },
+          {
+            "id": "q3",
+            "area": "platform",
+            "text": "Bagaimana rencana untuk Web App (web/) dan fitur Web Remote (/connect)?",
+            "type": "single",
+            "options": [
+              "Fokus di Android Flutter + Windows Rust saja; Web Remote (/connect) dihapus atau dinonaktifkan karena Rust memblokir browser Origin"
+            ],
+            "allow_other": true,
+            "skippable": true
+          }
+        ],
+        "answers": {
+          "q1": {"status": "answered", "value": "we're gonna all in (Rust + Tailscale + Flutter)"},
+          "q2": {"status": "answered", "value": "kurang lebih sama dengan yang sekarang (user-session), tapi lebih luas kontrolnya, lebih cepat, dan lebih simple; dashboardnya native app windows tanpa web browser"},
+          "q3": {"status": "answered", "value": "Fokus di Android Flutter + Windows Rust saja; Web Remote (/connect) dihapus atau dinonaktifkan"}
+        }
+      },
+      {
+        "round": 2,
+        "questions": [
+          {
+            "id": "q4",
+            "area": "first_moment",
+            "text": "Bagaimana alur koneksi luar rumah dan pengalaman HP 24/7?",
+            "type": "text",
+            "options": [],
+            "allow_other": true,
+            "skippable": false
+          }
+        ],
+        "answers": {
+          "q4": {
+            "status": "answered",
+            "value": "Zero re-pairing saat laptop mati/restart lalu ke kampus (auto-sync endpoint & Tailscale permanent IP + wizard 3 langkah untuk user awam), dan aplikasi HP berjalan 24/7 seperti companion smartwatch dengan notifikasi tray status koneksi & kontrol media interaktif (judul, play/pause, next, prev)."
+          }
+        }
+      }
+    ],
+    "coverage": {
+      "persona": "covered",
+      "first_moment": "covered",
+      "must_haves": "covered",
+      "differentiator": "covered",
+      "return_reason": "covered",
+      "platform": "covered",
+      "accounts_data": "not_needed",
+      "integrations": "covered",
+      "constraints": "covered",
+      "scale": "not_needed",
+      "stack_pref": "covered",
+      "hosting": "not_needed",
+      "data_sensitivity": "covered",
+      "auth": "covered",
+      "offline": "covered"
+    }
+  },
+  "assumptions": [
+    "Pengguna memakai akun Tailscale pribadi masing-masing pada PC Windows 10/11 dan HP Android 8.0+.",
+    "Aplikasi Windows berjalan pada sesi pengguna interaktif (user-session GUI + System Tray) dengan opsi autostart saat login Windows.",
+    "Target pengguna awal adalah penggunaan personal/individu (1-64 perangkat tepercaya per PC)."
+  ],
+  "tree": {
+    "app": "PC Remote v5.0 — Native Windows & 24/7 Companion Edition",
+    "modules": [
+      {
+        "id": "M1",
+        "name": "Aplikasi Desktop Native Windows & Tray",
+        "phase": 1,
+        "status": "Direncanakan",
+        "depends_on": [],
+        "subfeatures": [
+          {"id": "M1.1", "name": "Jendela GUI Native Windows"},
+          {"id": "M1.2", "name": "Render QR Pairing Native"},
+          {"id": "M1.3", "name": "Wizard Setup Tailscale PC"},
+          {"id": "M1.4", "name": "Tray, Close-to-Tray & Autostart"}
+        ]
+      },
+      {
+        "id": "M2",
+        "name": "Mesin Koneksi Zero Re-Pairing",
+        "phase": 1,
+        "status": "Direncanakan",
+        "depends_on": ["M1"],
+        "subfeatures": [
+          {"id": "M2.1", "name": "Fast Boot Polling & Auto-Sync"},
+          {"id": "M2.2", "name": "Fast Parallel Probe LAN+Tailscale"},
+          {"id": "M2.3", "name": "Failover Command Idempotent"},
+          {"id": "M2.4", "name": "Wizard & Deep-Link Tailscale HP"}
+        ]
+      },
+      {
+        "id": "M3",
+        "name": "Servis Companion 24/7 Android",
+        "phase": 1,
+        "status": "Direncanakan",
+        "depends_on": ["M2"],
+        "subfeatures": [
+          {"id": "M3.1", "name": "Foreground Service 24/7 Background"},
+          {"id": "M3.2", "name": "Notifikasi Status Koneksi Live"},
+          {"id": "M3.3", "name": "Notifikasi Media Play/Pause/Next/Prev"},
+          {"id": "M3.4", "name": "Tap-to-Open & Izin Notifikasi"}
+        ]
+      },
+      {
+        "id": "M4",
+        "name": "Keamanan & Pairing Permanen",
+        "phase": 1,
+        "status": "Direncanakan",
+        "depends_on": ["M1"],
+        "subfeatures": [
+          {"id": "M4.1", "name": "Identitas DPAPI & TLS Pinning"},
+          {"id": "M4.2", "name": "Pairing QR & Sesi Jangka Panjang"},
+          {"id": "M4.3", "name": "Manajemen & Pencabutan Perangkat"},
+          {"id": "M4.4", "name": "Proteksi Brute-Force & Server-ID"}
+        ]
+      },
+      {
+        "id": "M5",
+        "name": "Kontrol Audio, Media & Layar",
+        "phase": 1,
+        "status": "Direncanakan",
+        "depends_on": ["M4"],
+        "subfeatures": [
+          {"id": "M5.1", "name": "Master, Device & Sonar COM"},
+          {"id": "M5.2", "name": "Kontrol Media WinRT Real-Time"},
+          {"id": "M5.3", "name": "Hybrid Brightness WMI + OLED"},
+          {"id": "M5.4", "name": "Power, Sleep, Lock & Shutdown"}
+        ]
+      },
+      {
+        "id": "M6",
+        "name": "Cutover All-In, Installer & Web",
+        "phase": 1,
+        "status": "Direncanakan",
+        "depends_on": ["M1", "M2", "M3"],
+        "subfeatures": [
+          {"id": "M6.1", "name": "Installer NSIS & Migrasi Go"},
+          {"id": "M6.2", "name": "Deaktivasi /connect & Landing v5.0"},
+          {"id": "M6.3", "name": "Port 8443 & Cleanup Flutter"},
+          {"id": "M6.4", "name": "Smoke Test, Roaming & Build"}
+        ]
+      },
+      {
+        "id": "M7",
+        "name": "Kontrol Audio & Aplikasi Lanjutan",
+        "phase": 2,
+        "status": "Direncanakan",
+        "depends_on": ["M5"],
+        "subfeatures": [
+          {"id": "M7.1", "name": "Per-App Volume Mixer"},
+          {"id": "M7.2", "name": "Ganti Default Output Audio"},
+          {"id": "M7.3", "name": "Preset Cepat Audio & Layar"}
+        ]
+      },
+      {
+        "id": "M8",
+        "name": "Navigasi Cepat & Input Remote",
+        "phase": 2,
+        "status": "Direncanakan",
+        "depends_on": ["M5"],
+        "subfeatures": [
+          {"id": "M8.1", "name": "Touchpad Virtual & Klik Mouse"},
+          {"id": "M8.2", "name": "Shortcut Presentasi & Fullscreen"},
+          {"id": "M8.3", "name": "Kirim Teks & Clipboard Cepat"}
+        ]
+      }
+    ]
+  },
+  "approved": true
+}

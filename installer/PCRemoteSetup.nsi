@@ -1,166 +1,134 @@
+Unicode true
 !include "MUI2.nsh"
-!include "nsDialogs.nsh"
 !include "LogicLib.nsh"
-!include "FileFunc.nsh"
 
-Name "PC Remote Controller v4.3.0"
+Name "PC Remote v5.0"
 OutFile "PCRemoteSetup.exe"
 InstallDir "$PROGRAMFILES64\PCRemote"
 RequestExecutionLevel admin
+SetCompressor /SOLID lzma
 
-; Variables
-Var Dialog
-Var Label
-Var TextPIN
-Var PIN
+!define MUI_ABORTWARNING
+!define MUI_FINISHPAGE_RUN "$INSTDIR\pcremote-server.exe"
+!define MUI_FINISHPAGE_RUN_TEXT "Launch PC Remote"
 
-; Pages
 !insertmacro MUI_PAGE_WELCOME
-Page custom CreatePINPage ValidatePINPage
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
 !insertmacro MUI_LANGUAGE "English"
 
-Function CreatePINPage
-    !insertmacro MUI_HEADER_TEXT "Set your PIN" "Choose a PIN for the PC Remote Android App."
-
-    nsDialogs::Create 1018
-    Pop $Dialog
-
-    ${If} $Dialog == error
-        Abort
-    ${EndIf}
-
-    ${NSD_CreateLabel} 0 0 100% 12u "Set your PIN (numbers only, min 4 digits):"
-    Pop $Label
-
-    ${NSD_CreateText} 0 15u 100% 12u ""
-    Pop $TextPIN
-
-    nsDialogs::Show
-FunctionEnd
-
-Function ValidatePINPage
-    ${NSD_GetText} $TextPIN $PIN
-
-    StrLen $0 $PIN
-    ${If} $0 < 4
-    ${OrIf} $0 > 8
-        MessageBox MB_OK|MB_ICONEXCLAMATION "PIN must be between 4 and 8 digits."
-        Abort
-    ${EndIf}
-
-    ; Validate only digits
-    StrCpy $1 0
-    Loop:
-        IntCmp $1 $0 Done
-        StrCpy $2 $PIN 1 $1
-        ${If} $2 < "0"
-        ${OrIf} $2 > "9"
-            MessageBox MB_OK|MB_ICONEXCLAMATION "PIN must contain only numbers."
-            Abort
-        ${EndIf}
-        IntOp $1 $1 + 1
-        Goto Loop
-    Done:
-FunctionEnd
-
-Section "MainSection" SEC01
+Section "PC Remote (Required)" Main
+    SectionIn RO
+    SetShellVarContext current
     SetOutPath "$INSTDIR"
 
-    ; Kill any running server processes first to unlock files
+    ; Cleanly stop running PC Remote & legacy Go v4 processes before overwriting
     nsExec::ExecToStack 'taskkill /F /IM pcremote-server.exe /T'
     nsExec::ExecToStack 'taskkill /F /IM PCRemoteDashboard.exe /T'
     nsExec::ExecToStack 'taskkill /F /IM cloudflared.exe /T'
     Sleep 1000
 
-    ; Cleanup any old NSSM service if it exists from previous installations
+    ; Stop and remove legacy Go NSSM service if present
     nsExec::ExecToStack 'nssm stop PCRemoteServer'
     nsExec::ExecToStack 'nssm remove PCRemoteServer confirm'
     nsExec::ExecToStack '"$INSTDIR\nssm.exe" stop PCRemoteServer'
     nsExec::ExecToStack '"$INSTDIR\nssm.exe" remove PCRemoteServer confirm'
 
-    ; Install files
-    File "..\server\dist\pcremote-server.exe"
-    File "..\server\dist\PCRemoteDashboard.exe"
-    File "..\server\dist\cloudflared.exe"
-    File "..\server\favicon.ico"
+    ; Remove obsolete v4.x files from in-place installation directory
+    Delete "$INSTDIR\PCRemoteDashboard.exe"
+    Delete "$INSTDIR\cloudflared.exe"
+    Delete "$INSTDIR\ScreenOff.exe"
+    Delete "$INSTDIR\.env"
+    Delete "$INSTDIR\nssm.exe"
+    Delete "$INSTDIR\favicon.ico"
 
-    ; Create logs directory
-    CreateDirectory "$INSTDIR\logs"
-
-    ; Write .env file
-    FileOpen $0 "$INSTDIR\.env" w
-    FileWrite $0 "APP_PIN='$PIN'$\r$\n"
-    FileWrite $0 "PORT=8000$\r$\n"
-    FileClose $0
-
-    ; Grant Users write/modify permissions on the installation directory
-    nsExec::ExecToLog 'icacls "$INSTDIR" /grant "*S-1-5-32-545:(OI)(CI)(M)" /t'
-
-    ; Remove old registry startup if exists from v2.2.5
+    ; Remove legacy v4.x & preview shortcuts / startup entries
+    Delete "$SMSTARTUP\PCRemoteServer.lnk"
+    Delete "$SMSTARTUP\PC Remote Rust.lnk"
+    Delete "$DESKTOP\PCRemote Dashboard.lnk"
+    Delete "$SMPROGRAMS\PC Remote Server.lnk"
+    Delete "$SMPROGRAMS\PCRemote\PCRemote Dashboard.lnk"
+    RMDir "$SMPROGRAMS\PCRemote"
+    Delete "$SMPROGRAMS\PC Remote Rust\PC Remote.lnk"
+    Delete "$SMPROGRAMS\PC Remote Rust\Setup guide.lnk"
+    Delete "$SMPROGRAMS\PC Remote Rust\Uninstall.lnk"
+    RMDir "$SMPROGRAMS\PC Remote Rust"
     DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer"
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer"
 
-    ; Create shortcut in User's Startup folder for Autostart
-    CreateShortCut "$SMSTARTUP\PCRemoteServer.lnk" "$INSTDIR\pcremote-server.exe" "" "$INSTDIR\favicon.ico" 0 SW_SHOWMINIMIZED
+    ; Remove duplicate %LOCALAPPDATA%\PCRemoteRust binaries while preserving data directory
+    Delete "$LOCALAPPDATA\PCRemoteRust\pcremote-server.exe"
+    Delete "$LOCALAPPDATA\PCRemoteRust\README.md"
+    Delete "$LOCALAPPDATA\PCRemoteRust\configure-firewall.ps1"
+    Delete "$LOCALAPPDATA\PCRemoteRust\Uninstall.exe"
 
-    ; Create Desktop shortcut for the Dashboard
-    CreateShortCut "$DESKTOP\PCRemote Dashboard.lnk" "$INSTDIR\PCRemoteDashboard.exe" "" "$INSTDIR\favicon.ico"
+    SetOverwrite on
+    ClearErrors
+    File "..\server-rust\target\release\pcremote-server.exe"
+    ${If} ${Errors}
+        Abort "Could not write pcremote-server.exe. Close PC Remote and retry the installation."
+    ${EndIf}
+    File "rust\README.md"
+    File "..\scripts\rust\configure-firewall.ps1"
+    WriteUninstaller "$INSTDIR\Uninstall.exe"
 
-    ; Create Start Menu shortcut for the Dashboard (so it appears in Windows Search)
-    CreateDirectory "$SMPROGRAMS\PCRemote"
-    CreateShortCut "$SMPROGRAMS\PCRemote\PCRemote Dashboard.lnk" "$INSTDIR\PCRemoteDashboard.exe" "" "$INSTDIR\favicon.ico"
+    ; Start Menu & Desktop shortcuts
+    CreateDirectory "$SMPROGRAMS\PC Remote"
+    CreateShortcut "$SMPROGRAMS\PC Remote\PC Remote.lnk" "$INSTDIR\pcremote-server.exe"
+    CreateShortcut "$SMPROGRAMS\PC Remote\Setup guide.lnk" "$INSTDIR\README.md"
+    CreateShortcut "$SMPROGRAMS\PC Remote\Configure Firewall.lnk" "powershell.exe" '-ExecutionPolicy Bypass -File "$INSTDIR\configure-firewall.ps1" -Lan -Tailscale'
+    CreateShortcut "$SMPROGRAMS\PC Remote\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+    CreateShortcut "$DESKTOP\PC Remote.lnk" "$INSTDIR\pcremote-server.exe"
 
-    ; Open firewall
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="PCRemote Server" dir=in action=allow protocol=TCP localport=8000'
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemote" "DisplayName" "PC Remote v5.0"
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemote" "DisplayVersion" "5.0.0"
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemote" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemote" "InstallLocation" "$INSTDIR"
+    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemote" "NoModify" 1
+    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemote" "NoRepair" 1
+    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemoteRust"
+SectionEnd
 
-    ; Start the application directly in the user session
-    Exec '"$INSTDIR\pcremote-server.exe"'
-
-    
-
-    ; Write uninstaller
-    WriteUninstaller "$INSTDIR\uninstall.exe"
+Section /o "Start after Windows sign-in" Startup
+    SetShellVarContext current
+    CreateShortcut "$SMSTARTUP\PC Remote.lnk" "$INSTDIR\pcremote-server.exe" "--background"
 SectionEnd
 
 Section "Uninstall"
-    ; Kill running instance
-    nsExec::ExecToStack 'taskkill /F /IM pcremote-server.exe'
+    SetShellVarContext current
 
-    ; Stop and remove service (cleanup old installations if they exist)
-    nsExec::ExecToStack 'nssm stop PCRemoteServer'
-    nsExec::ExecToStack 'nssm remove PCRemoteServer confirm'
+    nsExec::ExecToStack 'taskkill /F /IM pcremote-server.exe /T'
+    Sleep 500
 
-    ; Remove registry startup
-    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteServer"
-
-    ; Remove shortcuts
-    Delete "$SMSTARTUP\PCRemoteServer.lnk"
-    Delete "$DESKTOP\PCRemote Dashboard.lnk"
-    Delete "$SMPROGRAMS\PCRemote\PCRemote Dashboard.lnk"
-    RMDir "$SMPROGRAMS\PCRemote"
-
-    ; Remove firewall rule
-    nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="PCRemote Server"'
-
-    ; Delete files
+    ClearErrors
     Delete "$INSTDIR\pcremote-server.exe"
-    Delete "$INSTDIR\PCRemoteDashboard.exe"
-    Delete "$INSTDIR\cloudflared.exe"
-    Delete "$INSTDIR\favicon.ico"
-    Delete "$INSTDIR\.env"
+    ${If} ${Errors}
+        Abort "Close PC Remote from the System Tray and retry uninstalling."
+    ${EndIf}
+
+    Delete "$SMSTARTUP\PC Remote.lnk"
+    Delete "$SMSTARTUP\PC Remote Rust.lnk"
+    Delete "$DESKTOP\PC Remote.lnk"
+    Delete "$SMPROGRAMS\PC Remote\PC Remote.lnk"
+    Delete "$SMPROGRAMS\PC Remote\Setup guide.lnk"
+    Delete "$SMPROGRAMS\PC Remote\Configure Firewall.lnk"
+    Delete "$SMPROGRAMS\PC Remote\Uninstall.lnk"
+    RMDir "$SMPROGRAMS\PC Remote"
+
+    Delete "$INSTDIR\README.md"
+    Delete "$INSTDIR\configure-firewall.ps1"
+    Delete "$INSTDIR\Uninstall.exe"
     Delete "$INSTDIR\uninstall.exe"
-    
-    ; Delete logs folder if user confirms
-    MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to delete the logs folder?" IDNO KeepLogs
-    RMDir /r "$INSTDIR\logs"
-KeepLogs:
-
     RMDir "$INSTDIR"
+
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "PCRemoteRust"
+    DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemote"
+    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PCRemoteRust"
+    ; Pairing credentials/data in %LOCALAPPDATA%\PCRemoteRust\data are retained for reinstall. Tailscale is untouched.
 SectionEnd
-
-
-

@@ -30,6 +30,7 @@ logs/
 # ────────────────────────────────────────────────────────────
 # Build artifacts
 app/build/
+app/android/build/
 
 # APK & AAB (goes to GitHub Releases, not repo)
 app/**/*.apk
@@ -136,3 +137,6 @@ graphify-out/
 # Agent Company (sementara)
 company/scratch/
 company/.trash/
+
+# savvy-flow worker scratch
+.savvy/

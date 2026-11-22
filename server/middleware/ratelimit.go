@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"pcremote-server/auth"
 )
 
 // ── Rate Limiter ─────────────────────────────────────────────
@@ -166,17 +168,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 // ExtractIP extracts the client IP from the request.
 // Does NOT trust X-Forwarded-For since this server handles direct connections.
 func ExtractIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-
-	if host == "127.0.0.1" || host == "::1" {
-		if cfIP := r.Header.Get("CF-Connecting-IP"); cfIP != "" {
-			return cfIP
-		}
-	}
-	return host
+	return auth.ClientIP(r)
 }
 
 // IsLocalhost returns true if the request comes from a loopback address.

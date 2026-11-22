@@ -57,7 +57,7 @@ func (ah *AuthHandlers) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip := r.RemoteAddr
+	ip := ClientIP(r)
 
 	var req loginRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&req); err != nil {
@@ -113,6 +113,8 @@ func (ah *AuthHandlers) PairHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ip := ClientIP(r)
+
 	var req pairRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&req); err != nil {
 		authSendJSON(w, http.StatusBadRequest, authErrorResponse{Error: "invalid request body"})
@@ -126,8 +128,15 @@ func (ah *AuthHandlers) PairHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !ah.Pairing.ValidateAndConsume(req.PairToken) {
 		slog.Warn("Invalid pairing attempt", "remote_addr", r.RemoteAddr)
+		if ah.Limiter != nil {
+			ah.Limiter.RecordAuthFailure(ip)
+		}
 		authSendJSON(w, http.StatusUnauthorized, authErrorResponse{Error: "invalid or expired pairing token"})
 		return
+	}
+
+	if ah.Limiter != nil {
+		ah.Limiter.ResetAuthFailures(ip)
 	}
 
 	deviceName := r.Header.Get("X-Device-Name")

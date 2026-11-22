@@ -1,3 +1,4 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -9,11 +10,13 @@ import 'package:pc_remote/services/api_service.dart';
 
 void main() {
   setUp(() async {
+    FlutterSecureStorage.setMockInitialValues({});
     SharedPreferences.setMockInitialValues({});
     await ApiService.init();
   });
 
-  testWidgets('Login screen loads and displays PC Remote title', (WidgetTester tester) async {
+  testWidgets('Login screen loads and displays PC Remote title',
+      (WidgetTester tester) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
