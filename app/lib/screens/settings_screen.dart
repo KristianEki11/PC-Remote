@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../services/companion_service.dart';
 import '../models/app_state.dart';
 import '../utils/theme.dart';
+import '../widgets/tailscale_setup_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,7 +19,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _newPinController = TextEditingController();
   final _confirmPinController = TextEditingController();
   bool _isLoading = false;
+  bool _companionEnabled = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCompanionSetting();
+  }
+
+  Future<void> _loadCompanionSetting() async {
+    final enabled = await CompanionService.isEnabled();
+    if (mounted) {
+      setState(() {
+        _companionEnabled = enabled;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -80,7 +98,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             return Container(
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: AppClays.card(),
               ),
               child: Padding(
@@ -92,157 +111,167 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: Form(
                   key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Ganti PIN Server',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _currentPinController,
-                      obscureText: true,
-                      keyboardType: TextInputType.number,
-                      maxLength: 8,
-                      decoration: const InputDecoration(
-                        labelText: 'PIN Sekarang',
-                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.textSecondary),
-                        counterText: '',
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'PIN sekarang tidak boleh kosong';
-                        }
-                        if (value.length < 4 || value.length > 8) {
-                          return 'PIN harus 4-8 digit';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _newPinController,
-                      obscureText: true,
-                      keyboardType: TextInputType.number,
-                      maxLength: 8,
-                      decoration: const InputDecoration(
-                        labelText: 'PIN Baru',
-                        prefixIcon: Icon(Icons.lock_reset, color: AppColors.textSecondary),
-                        counterText: '',
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'PIN baru tidak boleh kosong';
-                        }
-                        if (value.length < 4 || value.length > 8) {
-                          return 'PIN harus 4-8 digit';
-                        }
-                        if (value == _currentPinController.text) {
-                          return 'PIN baru tidak boleh sama dengan PIN sekarang';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _confirmPinController,
-                      obscureText: true,
-                      keyboardType: TextInputType.number,
-                      maxLength: 8,
-                      decoration: const InputDecoration(
-                        labelText: 'Konfirmasi PIN Baru',
-                        prefixIcon: Icon(Icons.lock_clock, color: AppColors.textSecondary),
-                        counterText: '',
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Konfirmasi PIN baru tidak boleh kosong';
-                        }
-                        if (value != _newPinController.text) {
-                          return 'Konfirmasi PIN baru tidak cocok';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    if (_errorMessage != null) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline, color: AppColors.error, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: AppColors.error, fontSize: 13),
-                              ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Ganti PIN Server',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
                             ),
-                          ],
-                        ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                color: AppColors.textSecondary),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
-                    ],
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: _isLoading ? null : AppGradients.primaryButton,
-                          borderRadius: BorderRadius.circular(10),
+                      TextFormField(
+                        controller: _currentPinController,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 8,
+                        decoration: const InputDecoration(
+                          labelText: 'PIN Sekarang',
+                          prefixIcon: Icon(Icons.lock_outline,
+                              color: AppColors.textSecondary),
+                          counterText: '',
                         ),
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : handleChangePin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'PIN sekarang tidak boleh kosong';
+                          }
+                          if (value.length < 4 || value.length > 8) {
+                            return 'PIN harus 4-8 digit';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _newPinController,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 8,
+                        decoration: const InputDecoration(
+                          labelText: 'PIN Baru',
+                          prefixIcon: Icon(Icons.lock_reset,
+                              color: AppColors.textSecondary),
+                          counterText: '',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'PIN baru tidak boleh kosong';
+                          }
+                          if (value.length < 4 || value.length > 8) {
+                            return 'PIN harus 4-8 digit';
+                          }
+                          if (value == _currentPinController.text) {
+                            return 'PIN baru tidak boleh sama dengan PIN sekarang';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _confirmPinController,
+                        obscureText: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 8,
+                        decoration: const InputDecoration(
+                          labelText: 'Konfirmasi PIN Baru',
+                          prefixIcon: Icon(Icons.lock_clock,
+                              color: AppColors.textSecondary),
+                          counterText: '',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Konfirmasi PIN baru tidak boleh kosong';
+                          }
+                          if (value != _newPinController.text) {
+                            return 'Konfirmasi PIN baru tidak cocok';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      if (_errorMessage != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: AppColors.error.withValues(alpha: 0.3)),
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  'Simpan PIN Baru',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline,
+                                  color: AppColors.error, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(
+                                      color: AppColors.error, fontSize: 13),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient:
+                                _isLoading ? null : AppGradients.primaryButton,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : handleChangePin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Simpan PIN Baru',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
             );
           },
         );
@@ -260,6 +289,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
+          ListTile(
+            leading: Icon(
+              ApiService.isTailscaleSynced
+                  ? Icons.verified_user_outlined
+                  : Icons.hub_outlined,
+              color: ApiService.isTailscaleSynced
+                  ? const Color(0xFF059669)
+                  : AppColors.primary,
+            ),
+            title: const Text('Akses Luar Rumah (Tailscale)'),
+            subtitle: Text(ApiService.isTailscaleSynced
+                ? 'Siap Luar Rumah (Tailscale Tersinkron)\n${ApiService.tailscaleUrl}'
+                : 'Ketuk untuk Setup Akses Luar Rumah'),
+            isThreeLine: ApiService.isTailscaleSynced,
+            trailing:
+                const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            onTap: () => showTailscaleSetupSheet(
+              context,
+              onUpdated: () {
+                if (mounted) setState(() {});
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: OutlinedButton.icon(
+              onPressed: () => CompanionService.downloadTailscaleApk(),
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Direct Download Tailscale HP'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.notifications_active_outlined,
+                color: AppColors.primary),
+            title: const Text('Servis Companion 24/7'),
+            subtitle: const Text(
+                'Tampilkan notifikasi status koneksi & kontrol media di latar belakang'),
+            value: _companionEnabled,
+            onChanged: (value) async {
+              setState(() {
+                _companionEnabled = value;
+              });
+              await CompanionService.setEnabled(value);
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+                'Untuk akses internet, pasang Tailscale di HP dan PC, lalu masuk ke jaringan milik Anda sendiri pada kedua perangkat. '
+                'Tidak perlu akun pengembang atau akses SSH. Aktifkan Run Unattended di Windows untuk koneksi setelah restart. '
+                'Android hanya dapat menjalankan satu VPN aktif. Jika memakai VPN lain, koneksi LAN tetap tersedia. '
+                'Jika akses Tailscale kedaluwarsa, autentikasi ulang melalui aplikasi Tailscale.'),
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
@@ -276,7 +366,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.lock_outline, color: AppColors.primary),
             title: const Text('Ganti PIN Server'),
             subtitle: const Text('Ubah PIN akses kontrol PC'),
-            trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            trailing:
+                const Icon(Icons.chevron_right, color: AppColors.textSecondary),
             onTap: _showChangePinBottomSheet,
           ),
           const Divider(),
@@ -313,7 +404,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline, color: AppColors.primary),
             title: Text('Versi Aplikasi'),
-            subtitle: Text('v4.0.0'),
+            subtitle: Text('v5.0.0'),
           ),
         ],
       ),

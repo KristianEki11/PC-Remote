@@ -112,7 +112,7 @@ func (tm *TunnelManager) runLoop() {
 			return
 		}
 
-		binPath, err := tm.findOrDownloadBinary()
+		binPath, err := tm.findBinary()
 		if err != nil {
 			slog.Warn("Cloudflare tunnel binary unavailable", "error", err)
 			tm.mu.Lock()
@@ -263,7 +263,7 @@ func (tm *TunnelManager) startKeepAlive(ctx context.Context, publicURL string) {
 	}
 }
 
-func (tm *TunnelManager) findOrDownloadBinary() (string, error) {
+func (tm *TunnelManager) findBinary() (string, error) {
 	// 1. Check local program directory & PATH
 	candidates := []string{
 		"cloudflared.exe",
@@ -301,46 +301,5 @@ func (tm *TunnelManager) findOrDownloadBinary() (string, error) {
 		return path, nil
 	}
 
-	// 2. If not found, download official binary on demand
-	targetDir := filepath.Join(localAppData, "PCRemote", "bin")
-	_ = os.MkdirAll(targetDir, 0755)
-	targetFile := filepath.Join(targetDir, "cloudflared.exe")
-
-	slog.Info("Downloading official Cloudflare tunnel binary...", "destination", targetFile)
-
-	downloadURL := "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
-	if runtime.GOOS == "darwin" {
-		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64"
-	} else if runtime.GOOS == "linux" {
-		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
-	}
-
-	client := &http.Client{
-		Timeout: 3 * time.Minute,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
-		},
-	}
-
-	resp, err := client.Get(downloadURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to download cloudflared: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("bad HTTP status downloading cloudflared: %s", resp.Status)
-	}
-
-	out, err := os.OpenFile(targetFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-	if err != nil {
-		return "", fmt.Errorf("failed to create binary file: %w", err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return "", fmt.Errorf("failed to write binary: %w", err)
-	}
-
-	return targetFile, nil
+	return "", fmt.Errorf("cloudflared not found: place cloudflared.exe next to the server or on PATH (the installer bundles it)")
 }

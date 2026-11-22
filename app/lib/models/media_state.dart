@@ -7,24 +7,33 @@ class MediaState extends ChangeNotifier {
   MediaStatus _currentStatus = MediaStatus.empty();
   bool _isLoading = false;
   Timer? _pollingTimer;
+  bool _fetching = false;
+  bool _disposed = false;
+  int _revision = 0;
 
   MediaStatus get currentStatus => _currentStatus;
   bool get isLoading => _isLoading;
 
   Future<void> fetchMediaStatus() async {
-    if (ApiService.authPin.isEmpty) {
+    if (_disposed || _fetching) return;
+    if (ApiService.authToken.isEmpty) {
       stopPolling();
       return;
     }
+    final revision = _revision;
+    _fetching = true;
     final data = await ApiService.getMediaStatus();
-    if (data != null) {
+    _fetching = false;
+    if (_disposed) return;
+    if (revision == _revision && data != null) {
       _currentStatus = MediaStatus.fromJson(data);
       notifyListeners();
     }
   }
 
   void startPolling() {
-    _pollingTimer?.cancel();
+    if (_pollingTimer != null || _disposed) return;
+    fetchMediaStatus();
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       fetchMediaStatus();
     });
@@ -37,6 +46,8 @@ class MediaState extends ChangeNotifier {
 
   /// Optimistic play/pause trigger
   Future<bool> playPause() async {
+    if (_disposed || _isLoading) return false;
+    _revision++;
     final originalStatus = _currentStatus;
     // Optimistic toggle
     _currentStatus = MediaStatus(
@@ -51,12 +62,13 @@ class MediaState extends ChangeNotifier {
     notifyListeners();
 
     final success = await ApiService.mediaPlayPause();
+    if (_disposed) return success;
     _isLoading = false;
     if (!success) {
       _currentStatus = originalStatus;
     }
     notifyListeners();
-    
+
     // Quick refresh to align state
     Future.delayed(const Duration(milliseconds: 300), fetchMediaStatus);
     return success;
@@ -64,12 +76,15 @@ class MediaState extends ChangeNotifier {
 
   /// Optimistic next track trigger
   Future<bool> next() async {
+    if (_disposed || _isLoading) return false;
+    _revision++;
     _isLoading = true;
     notifyListeners();
     final success = await ApiService.mediaNext();
+    if (_disposed) return success;
     _isLoading = false;
     notifyListeners();
-    
+
     // Quick refresh to align state
     Future.delayed(const Duration(milliseconds: 500), fetchMediaStatus);
     return success;
@@ -77,12 +92,15 @@ class MediaState extends ChangeNotifier {
 
   /// Optimistic previous track trigger
   Future<bool> prev() async {
+    if (_disposed || _isLoading) return false;
+    _revision++;
     _isLoading = true;
     notifyListeners();
     final success = await ApiService.mediaPrev();
+    if (_disposed) return success;
     _isLoading = false;
     notifyListeners();
-    
+
     // Quick refresh to align state
     Future.delayed(const Duration(milliseconds: 500), fetchMediaStatus);
     return success;
@@ -102,6 +120,7 @@ class MediaState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     stopPolling();
     super.dispose();
   }

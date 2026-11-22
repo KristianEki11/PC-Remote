@@ -50,26 +50,40 @@ class _QRScanScreenState extends State<QRScanScreen> {
       // 1. Decrypt AES-encrypted QR payload (PCR3:...) or fallback to plain JSON
       final decryptedJson = QRCrypto.decrypt(rawValue);
       if (decryptedJson == null) {
-        throw const FormatException('QR Code bukan format resmi PC Remote atau data rusak.');
+        throw const FormatException(
+            'QR Code bukan format resmi PC Remote atau data rusak.');
       }
 
       final Map<String, dynamic> data = jsonDecode(decryptedJson);
 
       final host = data['host'] as String?;
-      final port = data['port']?.toString() ?? '8000';
+      final port = data['port']?.toString() ?? '8443';
       final pairToken = data['pair_token'] as String?;
       final protocol = data['protocol'] as String? ?? 'https';
       final fingerprint = data['fingerprint'] as String? ?? '';
       final serverName = data['server_name'] as String? ?? 'PC Remote';
-      final alternateHosts = (data['alternate_hosts'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+      final alternateHosts = (data['alternate_hosts'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [];
       final publicUrl = data['public_url'] as String? ?? '';
+      final tailscaleUrl = data['tailscale_url'] as String? ?? '';
+      final serverId = data['server_id'] as String? ?? '';
+      if (data['protocol_version'] != null && data['protocol_version'] != 1) {
+        throw const FormatException(
+            'Versi protokol tidak didukung. Perbarui aplikasi.');
+      }
 
-      if (host == null || host.isEmpty || pairToken == null || pairToken.isEmpty) {
-        throw const FormatException('Format QR code tidak valid untuk PC Remote.');
+      if (host == null ||
+          host.isEmpty ||
+          pairToken == null ||
+          pairToken.isEmpty) {
+        throw const FormatException(
+            'Format QR code tidak valid untuk PC Remote.');
       }
 
       // 2. Perform one-time token pairing exchange with primary host
-      var token = await ApiService.pairWithQR(
+      final token = await ApiService.pairWithQR(
         host: host,
         port: port,
         pairToken: pairToken,
@@ -77,35 +91,18 @@ class _QRScanScreenState extends State<QRScanScreen> {
         fingerprint: fingerprint,
         serverName: serverName,
         publicUrl: publicUrl,
+        tailscaleUrl: tailscaleUrl,
+        serverId: serverId,
+        alternateHosts: alternateHosts,
       );
-
-      // 3. If primary host fails, automatically try alternate LAN hosts
-      String connectedHost = host;
-      if (token == null && alternateHosts.isNotEmpty) {
-        for (final altHost in alternateHosts) {
-          debugPrint('Primary host ($host) failed. Trying alternate host: $altHost');
-          token = await ApiService.pairWithQR(
-            host: altHost,
-            port: port,
-            pairToken: pairToken,
-            protocol: protocol,
-            fingerprint: fingerprint,
-            serverName: serverName,
-            publicUrl: publicUrl,
-          );
-          if (token != null) {
-            connectedHost = altHost;
-            break;
-          }
-        }
-      }
 
       if (!mounted) return;
 
       if (token != null) {
         // Success: update AppState and navigate to Dashboard
-        final fullHost = '$connectedHost:$port';
-        Provider.of<AppState>(context, listen: false).setConnectionDetails(fullHost, token);
+        final fullHost = ApiService.localIp;
+        Provider.of<AppState>(context, listen: false)
+            .setConnectionDetails(fullHost, token);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -134,7 +131,8 @@ class _QRScanScreenState extends State<QRScanScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Gagal pairing: Token kedaluwarsa atau server tidak dapat dijangkau.'),
+            content: Text(
+                'Gagal pairing: Token kedaluwarsa atau server tidak dapat dijangkau.'),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
           ),
@@ -165,7 +163,8 @@ class _QRScanScreenState extends State<QRScanScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -194,7 +193,8 @@ class _QRScanScreenState extends State<QRScanScreen> {
           ),
           // Camera switch
           IconButton(
-            icon: const Icon(Icons.cameraswitch_rounded, color: AppColors.textSecondary),
+            icon: const Icon(Icons.cameraswitch_rounded,
+                color: AppColors.textSecondary),
             onPressed: () => _controller.switchCamera(),
           ),
         ],
@@ -289,7 +289,8 @@ class _QRScanScreenState extends State<QRScanScreen> {
                       ),
                     ),
                   ] else ...[
-                    const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary, size: 28),
+                    const Icon(Icons.qr_code_scanner_rounded,
+                        color: AppColors.primary, size: 28),
                     const SizedBox(height: 8),
                     const Text(
                       'Arahkan kamera ke QR Code di PC',

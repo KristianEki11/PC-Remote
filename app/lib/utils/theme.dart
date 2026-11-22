@@ -41,12 +41,12 @@ class AppGradients {
 class AppGlass {
   static BoxDecoration cardDecoration() {
     return BoxDecoration(
-      color: Colors.white.withOpacity(0.95),
+      color: Colors.white.withValues(alpha: 0.95),
       borderRadius: BorderRadius.circular(24),
       border: Border.all(color: const Color(0xFFE5E5E5), width: 0.5),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 24,
           offset: const Offset(0, 8),
         ),
@@ -56,12 +56,12 @@ class AppGlass {
 
   static BoxDecoration buttonDecoration() {
     return BoxDecoration(
-      color: Colors.white.withOpacity(0.8),
+      color: Colors.white.withValues(alpha: 0.8),
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFE5E5E5), width: 0.5),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.03),
+          color: Colors.black.withValues(alpha: 0.03),
           blurRadius: 10,
           offset: const Offset(0, 4),
         ),
@@ -72,7 +72,7 @@ class AppGlass {
 
 class AppClays {
   AppClays._();
-  
+
   static List<BoxShadow> card({double intensity = 1.0}) => [];
   static List<BoxShadow> iconContainer({double intensity = 1.0}) => [];
   static List<BoxShadow> button({double intensity = 1.0}) => [];
@@ -115,21 +115,22 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 0,
           minimumSize: const Size(88, 56), // Larger touch targets
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withOpacity(0.8),
+        fillColor: Colors.white.withValues(alpha: 0.8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: const Color(0xFFE5E5E5), width: 0.5),
+          borderSide: const BorderSide(color: Color(0xFFE5E5E5), width: 0.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: const Color(0xFFE5E5E5), width: 0.5),
+          borderSide: const BorderSide(color: Color(0xFFE5E5E5), width: 0.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

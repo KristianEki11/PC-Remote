@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../services/companion_service.dart';
 import '../models/app_state.dart';
 import '../utils/theme.dart';
 import 'dashboard_screen.dart';
@@ -20,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
-  String _versionText = 'v4.0.0';
+  String _versionText = 'v5.0.0';
 
   @override
   void initState() {
@@ -32,13 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _checkAutoLogin() async {
     final prefs = await SharedPreferences.getInstance();
     final savedIp = prefs.getString('last_ip');
-    final savedToken = prefs.getString('auth_token');
+    final savedToken = ApiService.authToken;
 
     if (savedIp != null) {
       _ipController.text = savedIp;
     }
 
-    if (savedIp != null && savedToken != null && savedToken.isNotEmpty) {
+    if (savedIp != null && savedToken.isNotEmpty) {
       setState(() {
         _isLoading = true;
       });
@@ -50,7 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (isValid == true) {
         // Session is verified and active!
-        Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, savedToken);
+        Provider.of<AppState>(context, listen: false)
+            .setConnectionDetails(savedIp, savedToken);
         Provider.of<AppState>(context, listen: false).setConnectionStatus(true);
 
         // Update server version cache in background
@@ -67,8 +69,10 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (isValid == null) {
         // Server is offline / network unreachable (temporary).
         // DO NOT wipe the token! Allow entering dashboard in offline mode.
-        Provider.of<AppState>(context, listen: false).setConnectionDetails(savedIp, savedToken);
-        Provider.of<AppState>(context, listen: false).setConnectionStatus(false);
+        Provider.of<AppState>(context, listen: false)
+            .setConnectionDetails(savedIp, savedToken);
+        Provider.of<AppState>(context, listen: false)
+            .setConnectionStatus(false);
 
         Navigator.pushReplacement(
           context,
@@ -76,10 +80,11 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         // isValid == false -> Session was explicitly revoked on PC (401 Unauthorized)
-        await prefs.remove('auth_token');
+        await ApiService.clearToken();
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Sesi telah diputus dari PC. Silakan pindai QR Code kembali.';
+          _errorMessage =
+              'Sesi telah diputus dari PC. Silakan pindai QR Code kembali.';
         });
       }
     }
@@ -87,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadVersionInfo() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // 1. Jika di Web, coba ambil rilis terbaru dari GitHub
     if (kIsWeb) {
       final gitHubVersion = await ApiService.getLatestGitHubRelease();
@@ -98,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
     }
-    
+
     // 2. Jika di APK/Mobile (atau fetch GitHub gagal), pakai cache versi server terakhir
     final savedServerVersion = prefs.getString('server_version');
     if (savedServerVersion != null && mounted) {
@@ -106,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _versionText = 'Server v$savedServerVersion';
       });
     }
-    
+
     // 3. Coba ping server secara asinkron untuk update versi terbaru di latar belakang
     final savedIp = prefs.getString('last_ip');
     if (savedIp != null) {
@@ -146,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (token != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_ip', ip);
-      await prefs.setString('auth_token', token);
+      await ApiService.saveToken(token);
 
       // Update server version cache in background
       ApiService.healthCheck().then((health) {
@@ -157,7 +162,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      Provider.of<AppState>(context, listen: false).setConnectionDetails(ip, token);
+      Provider.of<AppState>(context, listen: false)
+          .setConnectionDetails(ip, token);
 
       Navigator.pushReplacement(
         context,
@@ -188,7 +194,8 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: TweenAnimationBuilder<Offset>(
-              tween: Tween<Offset>(begin: const Offset(0, 40), end: Offset.zero),
+              tween:
+                  Tween<Offset>(begin: const Offset(0, 40), end: Offset.zero),
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeOutCubic,
               builder: (context, offset, child) {
@@ -206,18 +213,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // App icon with glassmorphism
+                      // App icon
                       Container(
-                        width: 100,
-                        height: 100,
-                        decoration: AppGlass.cardDecoration().copyWith(
-                          shape: BoxShape.circle,
-                          borderRadius: null,
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.14),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
-                        child: const Icon(
-                          Icons.computer_rounded,
-                          size: 48,
-                          color: AppColors.primary,
+                        child: Image.asset(
+                          'assets/icon/pc_remote_logo.png',
+                          width: 96,
+                          height: 96,
+                          fit: BoxFit.contain,
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -243,152 +257,209 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       // Glassmorphism Card for form
                       Container(
-                            constraints: const BoxConstraints(maxWidth: 400),
-                            padding: const EdgeInsets.all(28.0),
-                            decoration: AppGlass.cardDecoration(),
-                            child: Column(
-                              children: [
-                                if (!kIsWeb) ...[
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 56, // Large touch target
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: AppGradients.primaryButton,
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppColors.primary.withOpacity(0.3),
-                                            blurRadius: 16,
-                                            offset: const Offset(0, 6),
-                                          ),
-                                        ],
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        padding: const EdgeInsets.all(28.0),
+                        decoration: AppGlass.cardDecoration(),
+                        child: Column(
+                          children: [
+                            if (!kIsWeb) ...[
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56, // Large touch target
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: AppGradients.primaryButton,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.primary
+                                            .withValues(alpha: 0.3),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
                                       ),
-                                      child: ElevatedButton.icon(
-                                        onPressed: _isLoading ? null : _openQRScanner,
-                                        icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 24),
-                                        label: const Text(
-                                          'Pindai QR Code di PC',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Row(
-                                    children: [
-                                      Expanded(child: Divider(color: AppColors.textMuted.withOpacity(0.2))),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                                        child: Text(
-                                          'atau masukkan manual',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: AppColors.textMuted,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(child: Divider(color: AppColors.textMuted.withOpacity(0.2))),
                                     ],
                                   ),
-                                  const SizedBox(height: 24),
-                                ],
-
-                                // Input fields
-                                TextField(
-                                  controller: _ipController,
-                                  keyboardType: TextInputType.url,
-                                  decoration: const InputDecoration(
-                                    labelText: 'IP Address / URL',
-                                    hintText: '192.168.1.x',
-                                    prefixIcon: Icon(Icons.wifi, color: AppColors.primary),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                TextField(
-                                  controller: _pinController,
-                                  obscureText: true,
-                                  keyboardType: TextInputType.number,
-                                  maxLength: 8,
-                                  decoration: const InputDecoration(
-                                    labelText: 'PIN',
-                                    prefixIcon: Icon(Icons.lock_outline, color: AppColors.primary),
-                                    counterText: '',
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                if (_errorMessage != null) ...[
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                  child: ElevatedButton.icon(
+                                    onPressed:
+                                        _isLoading ? null : _openQRScanner,
+                                    icon: const Icon(
+                                        Icons.qr_code_scanner_rounded,
+                                        color: Colors.white,
+                                        size: 24),
+                                    label: const Text(
+                                      'Pindai QR Code di PC',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        letterSpacing: 0.3,
+                                      ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.error_outline, color: AppColors.error, size: 20),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            _errorMessage!,
-                                            style: const TextStyle(color: AppColors.error, fontSize: 14),
-                                          ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(16)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                children: [
+                                  Expanded(
+                                      child: Divider(
+                                          color: AppColors.textMuted
+                                              .withValues(alpha: 0.2))),
+                                  const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 14),
+                                    child: Text(
+                                      'atau masukkan manual',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                      child: Divider(
+                                          color: AppColors.textMuted
+                                              .withValues(alpha: 0.2))),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+
+                            // Input fields
+                            TextField(
+                              controller: _ipController,
+                              keyboardType: TextInputType.url,
+                              decoration: const InputDecoration(
+                                labelText: 'IP Address / URL',
+                                hintText: '192.168.1.x',
+                                prefixIcon:
+                                    Icon(Icons.wifi, color: AppColors.primary),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _pinController,
+                              obscureText: true,
+                              keyboardType: TextInputType.number,
+                              maxLength: 8,
+                              decoration: const InputDecoration(
+                                labelText: 'PIN',
+                                prefixIcon: Icon(Icons.lock_outline,
+                                    color: AppColors.primary),
+                                counterText: '',
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            if (_errorMessage != null) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: AppColors.error
+                                          .withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        color: AppColors.error, size: 20),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        _errorMessage!,
+                                        style: const TextStyle(
+                                            color: AppColors.error,
+                                            fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56, // Large touch target
+                              child: OutlinedButton(
+                                onPressed: _isLoading ? null : _handleLogin,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  side: const BorderSide(
+                                      color: AppColors.primary, width: 2),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16)),
+                                  backgroundColor:
+                                      Colors.white.withValues(alpha: 0.5),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          color: AppColors.primary,
+                                          strokeWidth: 2.5,
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-
+                                      )
+                                    : const Text(
+                                        'Hubungkan Manual',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ExpansionTile(
+                        title: const Text('Akses dari luar WiFi rumah'),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Pasang Tailscale di HP dan PC, lalu masuk ke jaringan pribadi yang sama pada kedua perangkat. '
+                                  'Gunakan akun Anda sendiri; tidak perlu bergabung ke jaringan pengembang. '
+                                  'Setelah Tailscale PC aktif, buka QR baru di PC dan pindai di sini. '
+                                  'Android hanya mendukung satu VPN aktif. Untuk akses lokal, cukup gunakan jaringan WiFi yang sama.',
+                                ),
+                                const SizedBox(height: 12),
                                 SizedBox(
                                   width: double.infinity,
-                                  height: 56, // Large touch target
-                                  child: OutlinedButton(
-                                    onPressed: _isLoading ? null : _handleLogin,
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.primary,
-                                      side: const BorderSide(color: AppColors.primary, width: 2),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                      backgroundColor: Colors.white.withOpacity(0.5),
-                                    ),
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              color: AppColors.primary,
-                                              strokeWidth: 2.5,
-                                            ),
-                                          )
-                                        : const Text(
-                                            'Hubungkan Manual',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
+                                  child: OutlinedButton.icon(
+                                    onPressed: () =>
+                                        CompanionService.downloadTailscaleApk(),
+                                    icon: const Icon(Icons.download_rounded,
+                                        size: 18),
+                                    label: const Text(
+                                        'Direct Download Tailscale HP'),
                                   ),
                                 ),
                               ],
                             ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 16),
                       Text(
                         _versionText,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textMuted,
